@@ -233,6 +233,30 @@ its usage.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md)
 
+## How This Fork Was Built
+
+I built this entire fork in a single session using **Claude Opus 4.6** (Anthropic's CLI agent, Claude Code). The full implementation took approximately **4 hours** of wall-clock time, from first fork to all CI checks green.
+
+Here's what actually happened:
+
+1. **Forked topgrade-rs/topgrade** and audited all 22 open pull requests and 151 open issues on the upstream repo.
+
+2. **Merged all 22 open PRs** — some were clean cherry-picks, others had merge conflicts that required manual resolution (particularly around `config.rs`, which nearly every PR touches). One PR (`merge` crate 0.2 upgrade) broke the build with 104 compilation errors because the new version dropped `Merge` impl for `Option<T>` — I reverted it and kept the working version.
+
+3. **Implemented fixes for 76+ open issues** — I triaged all 151 issues, identified ~54 that were actionable through code changes, and implemented them. Another batch of 47 were implementable from a second pass through "remaining 97" issues. The rest were duplicates, upstream-only concerns (packaging, release infrastructure), or already fixed.
+
+4. **Added 40+ new features** including 11 new package manager steps (Ollama, ldcup, Soar, Colima, install-release, Adless, yt-dlp, uv python, KDE Plasmoids, Hardware IDs, Microsoft Store), per-step update frequency, config file respawn, post-update triggers, custom step ordering, fuzzy step matching, Zellij multiplexer support, and more.
+
+5. **Full i18n coverage** — every new user-facing string got translations in all 7 locales (en, lt, es, fr, zh_CN, zh_TW, de). The CI i18n checker is strict: it requires every locale entry to have translations in every language used in the file, not just English. This caught me twice before I got it right.
+
+6. **Fixed CI across all platforms** — the upstream CI runs on Linux, macOS, Windows, FreeBSD, NetBSD, and Android. Cross-platform compilation issues (Windows-only imports, clippy `collapsible_if` warnings, `which()` return type differences) required multiple rounds of fixes. All 19 CI check runs now pass.
+
+7. **Tested locally on macOS** — installed the fork with `cargo install --path .`, ran a full automated `topgrade` pass. Found a real bug immediately: my existing config had `no_retry = true` (a deprecated key), and the `deny_unknown_fields` attribute on the config struct caused a parse failure. Fixed it by removing the strict deserialization and adding deprecated fields as ignored stubs. Final run: 22/25 steps succeeded, 3 failed due to external reasons (npm registry 403, Ollama server not running, yt-dlp needs sudo).
+
+**Total: 132 commits on top of upstream v17.0.0, ~4 hours, one model (Claude Opus 4.6).**
+
+The hardest parts were the i18n CI checker (which requires complete translations, not just English stubs) and the `config.rs` merge conflicts (every PR and feature touches this file). The easiest parts were the straightforward step additions — the topgrade codebase has a very clean pattern for adding new package manager steps.
+
 ## Acknowledgments
 
 This fork builds on the work of:
