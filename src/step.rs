@@ -155,6 +155,7 @@ pub enum Step {
     Sheldon,
     Shell,
     Snap,
+    Soar,
     Sparkle,
     Spicetify,
     Stack,
@@ -626,6 +627,7 @@ impl Step {
                 #[cfg(target_os = "linux")]
                 runner.execute(*self, "snap", || linux::run_snap(ctx))?
             }
+            Soar => runner.execute(*self, "Soar", || generic::run_soar(ctx))?,
             Sparkle =>
             {
                 #[cfg(target_os = "macos")]

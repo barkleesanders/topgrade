@@ -1379,6 +1379,15 @@ pub fn run_stew(ctx: &ExecutionContext) -> Result<()> {
     ctx.execute(stew).args(["upgrade", "--all"]).status_checked()
 }
 
+pub fn run_soar(ctx: &ExecutionContext) -> Result<()> {
+    let soar = require("soar")?;
+
+    print_separator("Soar");
+
+    ctx.execute(&soar).arg("update").status_checked()?;
+    ctx.execute(&soar).arg("upgrade").status_checked()
+}
+
 pub fn run_bob(ctx: &ExecutionContext) -> Result<()> {
     let bob = require("bob")?;
 
