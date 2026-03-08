@@ -346,24 +346,33 @@ fn spawn_sudo_loop(ctx: &execution_context::ExecutionContext, config: &Config) -
 }
 
 fn main() {
+    // Exit codes:
+    //   0 - All steps completed successfully
+    //   1 - One or more steps failed
+    //   2 - Fatal error (topgrade could not run)
     match run() {
         Ok(()) => {
             exit(0);
         }
         Err(error) => {
-            let skip_print = (error.downcast_ref::<StepFailed>().is_some())
-                || (error
-                    .downcast_ref::<io::Error>()
-                    .filter(|io_error| io_error.kind() == io::ErrorKind::Interrupted)
-                    .is_some());
-
-            if !skip_print {
+            if error.downcast_ref::<StepFailed>().is_some() {
+                // Step failures: exit code 1
+                exit(1);
+            } else if error
+                .downcast_ref::<io::Error>()
+                .filter(|io_error| io_error.kind() == io::ErrorKind::Interrupted)
+                .is_some()
+            {
+                // User interruption: exit code 130 (128 + SIGINT)
+                exit(130);
+            } else {
+                // Fatal error: exit code 2
                 // The `Debug` implementation of `eyre::Result` prints a multi-line
                 // error message that includes all the 'causes' added with
                 // `.with_context(...)` calls.
                 println!("{}", t!("Error: {error}", error = format!("{:?}", error)));
+                exit(2);
             }
-            exit(1);
         }
     }
 }
