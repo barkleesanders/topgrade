@@ -1445,11 +1445,29 @@ pub fn run_certbot(ctx: &ExecutionContext) -> Result<()> {
     sudo.execute(ctx, &certbot)?.arg("renew").status_checked()
 }
 
+/// Check if freshclam is already running by looking for common lock/pid files.
+fn freshclam_is_locked() -> bool {
+    let lock_paths = [
+        "/var/log/clamav/freshclam.pid",
+        "/run/clamav/freshclam.pid",
+        "/var/run/clamav/freshclam.pid",
+    ];
+    lock_paths.iter().any(|p| Path::new(p).exists())
+}
+
 /// Run `$ freshclam` to update ClamAV signature database
 ///
 /// doc: https://docs.clamav.net/manual/Usage/SignatureManagement.html#freshclam
 pub fn run_freshclam(ctx: &ExecutionContext) -> Result<()> {
     let freshclam = require("freshclam")?;
+
+    // If the freshclam daemon is already running, skip to avoid lock conflicts
+    if freshclam_is_locked() {
+        return Err(SkipStep(t!(
+            "freshclam is already running (lock file found). The ClamAV auto-updater service handles database updates."
+        ).to_string()).into());
+    }
+
     print_separator(t!("Update ClamAV Database(FreshClam)"));
 
     let output = ctx.execute(&freshclam).output()?;
