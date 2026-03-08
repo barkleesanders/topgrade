@@ -38,7 +38,7 @@ enum RetryDecision {
 
 type Report<'a> = Vec<(Cow<'a, str>, StepResult)>;
 
-pub struct UpdatedComponents(Vec<UpdatedComponent>);
+pub struct UpdatedComponents(pub Vec<UpdatedComponent>);
 
 impl UpdatedComponents {
     pub fn new(updated: Vec<UpdatedComponent>) -> Self {

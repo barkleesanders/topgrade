@@ -258,6 +258,9 @@ fn run() -> Result<()> {
             print_result(key, result);
         }
 
+        // Print a summary of all updated components
+        print_updated_components_summary(report);
+
         if skipped_missing_sudo {
             print_warning(t!(
                 "\nSome steps were skipped as sudo or equivalent could not be found."
