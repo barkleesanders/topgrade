@@ -1379,6 +1379,14 @@ pub fn run_stew(ctx: &ExecutionContext) -> Result<()> {
     ctx.execute(stew).args(["upgrade", "--all"]).status_checked()
 }
 
+pub fn run_install_release(ctx: &ExecutionContext) -> Result<()> {
+    let install_release = require("install-release")?;
+
+    print_separator("install-release");
+
+    ctx.execute(install_release).arg("update").status_checked()
+}
+
 pub fn run_colima(ctx: &ExecutionContext) -> Result<()> {
     let colima = require("colima")?;
 
