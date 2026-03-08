@@ -193,6 +193,13 @@ pub enum Step {
 impl Step {
     #[allow(clippy::too_many_lines)]
     pub fn run(&self, runner: &mut Runner, ctx: &ExecutionContext) -> Result<()> {
+        // When --only is specified, skip detection for steps not in the list.
+        // This avoids unnecessary work like scanning for git repos, checking
+        // for binaries, etc. for steps that won't run anyway.
+        if !ctx.config().should_run(*self) {
+            return Ok(());
+        }
+
         use Step::*;
 
         match *self {
