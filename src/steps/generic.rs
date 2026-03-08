@@ -2530,6 +2530,7 @@ pub fn run_falconf(ctx: &ExecutionContext) -> Result<()> {
 /// Returns None if `gh` is not installed or the API call fails.
 fn ytdlp_latest_version_via_gh() -> Option<String> {
     let gh = which_crate::which("gh").ok()?;
+    #[allow(clippy::disallowed_methods)]
     let output = std::process::Command::new(gh)
         .args(["api", "repos/yt-dlp/yt-dlp/releases/latest", "--jq", ".tag_name"])
         .output()
