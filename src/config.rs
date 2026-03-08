@@ -214,6 +214,7 @@ pub struct Yarn {
 #[allow(clippy::upper_case_acronyms)]
 pub struct NPM {
     use_sudo: Option<bool>,
+    audit_fix: Option<bool>,
 }
 
 #[derive(Deserialize, Default, Debug, Merge)]
@@ -2221,6 +2222,14 @@ impl Config {
             .npm
             .as_ref()
             .and_then(|npm| npm.use_sudo)
+            .unwrap_or(false)
+    }
+
+    pub fn npm_audit_fix(&self) -> bool {
+        self.config_file
+            .npm
+            .as_ref()
+            .and_then(|npm| npm.audit_fix)
             .unwrap_or(false)
     }
 

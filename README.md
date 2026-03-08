@@ -27,6 +27,7 @@ This is an **enhanced fork** of [topgrade-rs/topgrade](https://github.com/topgra
 ## Latest Updates
 
 ### 2026-03-08
+- **npm audit fix**: Built-in `npm audit fix` step that auto-fixes known vulnerabilities after global package updates. Enable with `audit_fix = true` in the `[npm]` config section. Uses safe fixes only (never `--force`). Full i18n support across all 7 languages.
 - **gh-tool-updater**: Registry-driven GitHub release updater — replaces per-tool topgrade custom commands with a single script that auto-discovers, registers, and updates tools from GitHub releases. Supports binary, tarball, and DMG install types. ([`1216bdb`](https://github.com/barkleesanders/topgrade/commit/1216bdb))
 - **yt-dlp rate limit bypass**: Use `gh` CLI for authenticated GitHub API calls during yt-dlp version checks, avoiding 60 req/hr unauthenticated rate limit ([`5f1efa3`](https://github.com/barkleesanders/topgrade/commit/5f1efa3), [`08a3d80`](https://github.com/barkleesanders/topgrade/commit/08a3d80))
 - **Coverage audit**: Added `topgrade-audit.sh` post-command that reports which tools topgrade covers vs uncovered ([`73afda3`](https://github.com/barkleesanders/topgrade/commit/73afda3))

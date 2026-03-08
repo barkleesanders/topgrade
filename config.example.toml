@@ -459,6 +459,10 @@
 # Use sudo if the NPM directory isn't owned by the current user
 # use_sudo = true
 
+# Run `npm audit fix` after updating global packages to auto-fix known vulnerabilities.
+# Only applies safe, non-breaking fixes (never uses --force).
+# audit_fix = true
+
 
 [yarn]
 # Run `yarn global upgrade` with `sudo`

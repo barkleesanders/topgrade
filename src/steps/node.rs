@@ -293,14 +293,46 @@ pub fn run_npm_upgrade(ctx: &ExecutionContext) -> Result<()> {
 
     #[cfg(target_os = "linux")]
     {
-        npm.upgrade(ctx, should_use_sudo(&npm, ctx)?)
+        npm.upgrade(ctx, should_use_sudo(&npm, ctx)?)?;
     }
 
     #[cfg(not(target_os = "linux"))]
     {
         // On non-Linux platforms (e.g. Windows with gsudo), respect the use_sudo config flag
-        npm.upgrade(ctx, ctx.config().npm_use_sudo())
+        npm.upgrade(ctx, ctx.config().npm_use_sudo())?;
     }
+
+    if ctx.config().npm_audit_fix() {
+        run_npm_audit_fix(ctx)?;
+    }
+
+    Ok(())
+}
+
+pub fn run_npm_audit_fix(ctx: &ExecutionContext) -> Result<()> {
+    let npm = require("npm").map(|b| NPM::new(b, NPMVariant::Npm))?;
+
+    print_separator(t!("NPM Audit Fix"));
+
+    let use_sudo;
+    #[cfg(target_os = "linux")]
+    {
+        use_sudo = should_use_sudo(&npm, ctx)?;
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        use_sudo = ctx.config().npm_use_sudo();
+    }
+
+    let args = ["audit", "fix", npm.global_location_arg(ctx)];
+    if use_sudo {
+        let sudo = ctx.require_sudo()?;
+        sudo.execute(ctx, &npm.command)?.args(args).status_checked()?;
+    } else {
+        ctx.execute(&npm.command).args(args).status_checked()?;
+    }
+
+    Ok(())
 }
 
 pub fn run_pnpm_upgrade(ctx: &ExecutionContext) -> Result<()> {
