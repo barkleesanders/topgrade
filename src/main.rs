@@ -215,6 +215,31 @@ fn run() -> Result<()> {
         }
     }
 
+    // Check if the config file was modified during the run.
+    // If so, re-exec topgrade with the same args (similar to self-update respawn).
+    if config.config_changed() {
+        print_info(t!("Configuration file changed during run. Respawning..."));
+        #[allow(clippy::disallowed_methods)]
+        let current_exe = env::current_exe()?;
+        #[allow(clippy::disallowed_methods)]
+        let mut command = std::process::Command::new(current_exe);
+        command.args(env::args().skip(1));
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::CommandExt as _;
+            let err = command.exec();
+            return Err(err.into());
+        }
+
+        #[cfg(windows)]
+        {
+            #[allow(clippy::disallowed_methods)]
+            let status = command.status()?;
+            exit(status.code().unwrap_or(2));
+        }
+    }
+
     let mut failed = false;
 
     let report = runner.report();
