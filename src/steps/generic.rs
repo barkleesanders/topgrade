@@ -1379,6 +1379,28 @@ pub fn run_stew(ctx: &ExecutionContext) -> Result<()> {
     ctx.execute(stew).args(["upgrade", "--all"]).status_checked()
 }
 
+pub fn run_colima(ctx: &ExecutionContext) -> Result<()> {
+    let colima = require("colima")?;
+
+    print_separator("Colima");
+
+    // Check if Colima is running by listing instances
+    let output = ctx
+        .execute(&colima)
+        .always()
+        .args(["list", "--json"])
+        .output_checked_utf8();
+
+    // If Colima is running, restart it to pick up updates
+    if let Ok(output) = output {
+        if output.stdout.contains("Running") {
+            ctx.execute(&colima).args(["restart"]).status_checked()?;
+        }
+    }
+
+    Ok(())
+}
+
 pub fn run_soar(ctx: &ExecutionContext) -> Result<()> {
     let soar = require("soar")?;
 
