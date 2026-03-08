@@ -549,6 +549,22 @@ pub struct Frequency {
     steps: Option<std::collections::HashMap<Step, StepFrequency>>,
 }
 
+/// Custom step ordering configuration.
+///
+/// ```toml
+/// [step_order]
+/// after_system = ["flatpak", "snap"]
+/// ```
+///
+/// This ensures the specified steps run after the named step.
+#[derive(Deserialize, Default, Debug, Merge)]
+#[serde(deny_unknown_fields)]
+pub struct StepOrder {
+    #[serde(flatten)]
+    #[merge(skip)]
+    rules: Option<std::collections::HashMap<String, Vec<Step>>>,
+}
+
 #[derive(Deserialize, Default, Debug, Merge)]
 #[serde(deny_unknown_fields)]
 /// Configuration file
@@ -663,6 +679,9 @@ pub struct ConfigFile {
 
     #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
     frequency: Option<Frequency>,
+
+    #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
+    step_order: Option<StepOrder>,
 }
 
 fn config_directory() -> PathBuf {
@@ -2242,6 +2261,12 @@ impl Config {
             .as_ref()
             .and_then(|uv_python| uv_python.post_commands.as_deref())
 
+    }
+
+    /// Get the step ordering rules from the config file.
+    /// Returns a map of "after_{step}" -> list of steps that should follow.
+    pub fn step_order_rules(&self) -> Option<&std::collections::HashMap<String, Vec<Step>>> {
+        self.config_file.step_order.as_ref().and_then(|so| so.rules.as_ref())
     }
 
     /// Check if the config file has been modified since it was loaded.

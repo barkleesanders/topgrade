@@ -199,7 +199,16 @@ fn run() -> Result<()> {
         }
     }
 
-    for step in step::default_steps() {
+    let steps = {
+        let default = step::default_steps();
+        if let Some(rules) = config.step_order_rules() {
+            step::apply_step_order(default, rules)
+        } else {
+            default
+        }
+    };
+
+    for step in steps {
         match step.run(&mut runner, &ctx) {
             Ok(()) => (),
             Err(error)
