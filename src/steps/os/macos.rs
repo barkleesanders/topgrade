@@ -52,8 +52,9 @@ pub fn upgrade_macos(ctx: &ExecutionContext) -> Result<()> {
         }
     }
 
-    let mut command = ctx.execute("softwareupdate");
-    command.args(["--install", "--all"]);
+    let sudo = ctx.require_sudo()?;
+    let mut command = sudo.execute(ctx, "softwareupdate")?;
+    command.args(["--install", "--all", "--restart"]);
 
     if should_ask {
         command.arg("--no-scan");
