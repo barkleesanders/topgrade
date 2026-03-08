@@ -482,6 +482,13 @@ pub struct UvPythonConfig {
 
 #[derive(Deserialize, Default, Debug, Merge)]
 #[serde(deny_unknown_fields)]
+pub struct GoConfig {
+    #[merge(strategy = crate::utils::merge_strategies::vec_prepend_opt)]
+    gup_exclude: Option<Vec<String>>,
+}
+
+#[derive(Deserialize, Default, Debug, Merge)]
+#[serde(deny_unknown_fields)]
 pub struct Cargo {
     git: Option<bool>,
     quiet: Option<bool>,
@@ -596,6 +603,9 @@ pub struct ConfigFile {
 
     #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
     doom: Option<DoomConfig>,
+
+    #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
+    go: Option<GoConfig>,
 
     #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
     cargo: Option<Cargo>,
@@ -1735,6 +1745,14 @@ impl Config {
                 .as_ref()
                 .and_then(|git| git.pull_predefined)
                 .unwrap_or(true)
+    }
+
+    pub fn gup_exclude(&self) -> Vec<String> {
+        self.config_file
+            .go
+            .as_ref()
+            .and_then(|go| go.gup_exclude.clone())
+            .unwrap_or_default()
     }
 
     pub fn cargo_update_git(&self) -> bool {
