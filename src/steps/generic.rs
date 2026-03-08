@@ -2240,12 +2240,29 @@ pub fn run_ldcup(ctx: &ExecutionContext) -> Result<()> {
 pub fn run_ollama_pull(ctx: &ExecutionContext) -> Result<()> {
     let ollama = require("ollama")?;
 
+    // Check if the Ollama server is running before printing the separator.
+    // `ollama list` fails with "could not connect" if the server is not active.
+    let probe = ctx.execute(&ollama).always().arg("list").output()?;
+    let probe = match probe {
+        ExecutorOutput::Wet(output) => output,
+        ExecutorOutput::Dry => {
+            print_separator("Ollama");
+            return Ok(());
+        }
+    };
+    if !probe.status.success() {
+        let stderr = String::from_utf8_lossy(&probe.stderr);
+        if stderr.contains("could not connect") || stderr.contains("connection refused") {
+            return Err(
+                SkipStep("Ollama server is not running; skipping (start it with 'ollama serve')".to_string()).into(),
+            );
+        }
+        // Some other error — fall through and let the existing code report it.
+    }
+
     print_separator("Ollama");
 
-    // We use `ctx.execute(...).always()` so that we can still collect the model
-    // list even in dry run.
-    let ollama_list_output = ctx.execute(&ollama).always().arg("list").output_checked_utf8()?;
-    let ollama_list_stdout = ollama_list_output.stdout;
+    let ollama_list_stdout = String::from_utf8_lossy(&probe.stdout).to_string();
     // trim the last new-line character, or `stdout.split('\n')` would give us an empty string
     let ollama_list_stdout_trimmed = ollama_list_stdout.trim_end_matches('\n');
     // skip(1) to skip the first `NAME ID SIZE MODIFIED` header line
@@ -2539,14 +2556,23 @@ pub fn run_ytdlp(ctx: &ExecutionContext) -> Result<()> {
 
     print_separator("yt-dlp");
 
-    // The -U command was already run above; report its result
+    // If the non-sudo attempt succeeded, report it
     if output.status.success() {
         std::io::stdout().lock().write_all(&output.stdout).unwrap();
         std::io::stderr().lock().write_all(&output.stderr).unwrap();
-        Ok(())
-    } else {
-        std::io::stdout().lock().write_all(&output.stdout).unwrap();
-        std::io::stderr().lock().write_all(&output.stderr).unwrap();
-        Err(eyre!("yt-dlp self-update failed"))
+        return Ok(());
     }
+
+    // Check if it failed due to a permission error (e.g., installed to /usr/local/bin)
+    let combined_lower = combined.to_lowercase();
+    if combined_lower.contains("unable to write") || combined_lower.contains("permission denied") {
+        // Retry with sudo
+        let sudo = ctx.require_sudo()?;
+        return sudo.execute(ctx, &ytdlp)?.args(["-U"]).status_checked();
+    }
+
+    // Some other error
+    std::io::stdout().lock().write_all(&output.stdout).unwrap();
+    std::io::stderr().lock().write_all(&output.stderr).unwrap();
+    Err(eyre!("yt-dlp self-update failed"))
 }
