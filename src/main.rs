@@ -260,6 +260,19 @@ fn run() -> Result<()> {
     if !report.is_empty() {
         print_separator(t!("Summary"));
 
+        // Show self-update info if topgrade was upgraded and re-exec'd
+        if let Ok(old_version) = env::var("TOPGRADE_OLD_VERSION") {
+            let current = crate_version!();
+            println!(
+                "{}",
+                t!(
+                    "Self-update: {old} -> {new}",
+                    old = old_version,
+                    new = current
+                )
+            );
+        }
+
         let mut skipped_missing_sudo = false;
 
         for (key, result) in report {

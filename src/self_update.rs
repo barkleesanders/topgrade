@@ -67,7 +67,10 @@ pub fn self_update(ctx: &ExecutionContext) -> Result<()> {
                 print_info(t!("Respawning..."));
                 #[allow(clippy::disallowed_methods)]
                 let mut command = Command::new(current_exe?);
-                command.args(env::args().skip(1)).env("TOPGRADE_NO_SELF_UPGRADE", "");
+                command
+                    .args(env::args().skip(1))
+                    .env("TOPGRADE_NO_SELF_UPGRADE", "")
+                    .env("TOPGRADE_OLD_VERSION", current_version);
 
                 #[cfg(unix)]
                 {
