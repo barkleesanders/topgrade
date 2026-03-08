@@ -373,8 +373,8 @@ pub fn print_updated_components_summary(report: &[(impl AsRef<str>, StepResult)]
     let mut any_updates = false;
 
     for (key, result) in report {
-        if let StepResult::Success(Some(updated)) = result {
-            if !updated.0.is_empty() {
+        if let StepResult::Success(Some(updated)) = result
+            && !updated.0.is_empty() {
                 if !any_updates {
                     any_updates = true;
                     print_separator("Updated Components");
@@ -384,6 +384,5 @@ pub fn print_updated_components_summary(report: &[(impl AsRef<str>, StepResult)]
                     println!("  - {component}");
                 }
             }
-        }
     }
 }
