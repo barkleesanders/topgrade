@@ -1514,30 +1514,6 @@ _version: 2
   en: "Self-update: %{old} -> %{new}"
 "System needs a reboot after updates.":
   en: "System needs a reboot after updates."
-"Snappy Driver Installer Origin":
-  en: "Snappy Driver Installer Origin"
-"Running SDIO analysis...":
-  en: "Running SDIO analysis..."
-"Running SDIO automatic installation...":
-  en: "Running SDIO automatic installation..."
-"Running SDIO dry-run analysis...":
-  en: "Running SDIO dry-run analysis..."
-"Running SDIO installation...":
-  en: "Running SDIO installation..."
-"SDIO analysis complete.":
-  en: "SDIO analysis complete."
-"SDIO analysis found no drivers to install; keeping this run in analysis mode.":
-  en: "SDIO analysis found no drivers to install; keeping this run in analysis mode."
-"SDIO automatic installation complete.":
-  en: "SDIO automatic installation complete."
-"SDIO driver updates are disabled. Enable with 'enable_sdio = true' in [windows] section":
-  en: "SDIO driver updates are disabled. Enable with 'enable_sdio = true' in [windows] section"
-"SDIO dry-run analysis complete.":
-  en: "SDIO dry-run analysis complete."
-"SDIO installation complete.":
-  en: "SDIO installation complete."
-"SDIO (Snappy Driver Installer Origin) not found":
-  en: "SDIO (Snappy Driver Installer Origin) not found"
 "Failed to run trigger for {}: {}":
   en: "Failed to run trigger for %{}: %{}"
 "Command failed: `{command}`":

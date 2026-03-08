@@ -512,12 +512,7 @@ fn detect_sdio_in_path(is_64bit: bool) -> Option<std::path::PathBuf> {
 /// Returns SDIO executable patterns in priority order
 fn get_sdio_executable_names(is_64bit: bool) -> Vec<&'static str> {
     if is_64bit {
-        vec![
-            "SDIO_auto.bat",
-            "SDIO_x64.exe",
-            "SDIO.exe",
-            "sdio",
-        ]
+        vec!["SDIO_auto.bat", "SDIO_x64.exe", "SDIO.exe", "sdio"]
     } else {
         vec!["SDIO_auto.bat", "SDIO.exe", "sdio"]
     }
