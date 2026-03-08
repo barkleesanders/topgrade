@@ -262,6 +262,47 @@ pub fn run_containers(ctx: &ExecutionContext) -> Result<()> {
         }
     }
 
+    // Restart running containers that use updated images
+    if ctx.config().containers_restart() && !ctx.run_type().dry() {
+        debug!("Restarting running containers after image pull");
+        // List running containers
+        let running_output = if let Some(sudo) = sudo {
+            sudo.execute(ctx, &crt)?
+                .always()
+                .args(["ps", "--format", "{{.Image}} {{.ID}}"])
+                .output_checked_utf8()?
+        } else {
+            ctx.execute(&crt)
+                .always()
+                .args(["ps", "--format", "{{.Image}} {{.ID}}"])
+                .output_checked_utf8()?
+        };
+
+        for line in running_output.stdout.lines() {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() >= 2 {
+                let image = parts[0];
+                let container_id = parts[1];
+                // Check if this image was one we pulled
+                if containers.iter().any(|c| c.repo_tag == image) {
+                    debug!("Restarting container {} (image: {})", container_id, image);
+                    let restart_result = if let Some(sudo) = sudo {
+                        sudo.execute(ctx, &crt)?
+                            .args(["restart", container_id])
+                            .status_checked()
+                    } else {
+                        ctx.execute(&crt)
+                            .args(["restart", container_id])
+                            .status_checked()
+                    };
+                    if let Err(e) = restart_result {
+                        warn!("Failed to restart container {}: {}", container_id, e);
+                    }
+                }
+            }
+        }
+    }
+
     if ctx.config().containers_system_prune() {
         // Run system prune to clean up unused containers, networks, and build cache
         if let Some(sudo) = sudo {

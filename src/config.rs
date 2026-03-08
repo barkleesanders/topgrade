@@ -60,6 +60,7 @@ pub struct Containers {
     runtime: Option<ContainerRuntime>,
     system_prune: Option<bool>,
     use_sudo: Option<bool>,
+    restart: Option<bool>,
 }
 
 #[derive(Deserialize, Default, Debug, Merge)]
@@ -1181,6 +1182,15 @@ impl Config {
             .containers
             .as_ref()
             .and_then(|containers| containers.system_prune)
+            .unwrap_or(false)
+    }
+
+    /// Whether to restart running containers after image pull.
+    pub fn containers_restart(&self) -> bool {
+        self.config_file
+            .containers
+            .as_ref()
+            .and_then(|containers| containers.restart)
             .unwrap_or(false)
     }
 
