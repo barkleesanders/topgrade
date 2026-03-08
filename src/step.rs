@@ -166,6 +166,7 @@ pub enum Step {
     Toolbx,
     Typst,
     Uv,
+    UvPython,
     Vagrant,
     Vcpkg,
     Vim,
@@ -593,7 +594,7 @@ impl Step {
                 // 2. it is not disabled from configuration (env var/CLI opt/file)
                 #[cfg(feature = "self-update")]
                 {
-                    if std::env::var("TOPGRADE_NO_SELF_UPGRADE").is_err() && !ctx.config().no_self_update() {
+                    if std::env::var("TOPGRADE_NO_SELF_UPGRADE").is_err() {
                         runner.execute(*self, "Self Update", || self_update::self_update(ctx))?;
                     }
                 }
@@ -673,6 +674,7 @@ impl Step {
             }
             Typst => runner.execute(*self, "Typst", || generic::run_typst(ctx))?,
             Uv => runner.execute_with_updated(*self, "uv", || generic::run_uv(ctx))?,
+            UvPython => runner.execute(*self, "uv python", || generic::run_uv_python(ctx))?,
             Vagrant => {
                 if ctx.config().should_run(Vagrant)
                     && let Ok(boxes) = vagrant::collect_boxes(ctx)
@@ -915,6 +917,7 @@ pub(crate) fn default_steps() -> Vec<Step> {
         Poetry,
         Typst,
         Uv,
+        UvPython,
         Zvm,
         Aqua,
         Bun,

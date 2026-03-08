@@ -391,7 +391,6 @@ pub struct Misc {
     #[merge(strategy = crate::utils::merge_strategies::vec_prepend_opt)]
     only: Option<Vec<Step>>,
 
-    no_self_update: Option<bool>,
 
     log_filters: Option<Vec<String>>,
 
@@ -473,6 +472,14 @@ pub struct DoomConfig {
 
 #[derive(Deserialize, Default, Debug, Merge)]
 #[serde(deny_unknown_fields)]
+pub struct UvPythonConfig {
+    enable_uv_python_update: Option<bool>,
+    reinstall_tools: Option<bool>,
+    post_commands: Option<Vec<String>>,
+}
+
+#[derive(Deserialize, Default, Debug, Merge)]
+#[serde(deny_unknown_fields)]
 pub struct Cargo {
     git: Option<bool>,
     quiet: Option<bool>,
@@ -488,6 +495,7 @@ pub struct Rustup {
 #[serde(deny_unknown_fields)]
 pub struct Pkgfile {
     enable: Option<bool>,
+
 }
 
 #[derive(Deserialize, Default, Debug, Merge)]
@@ -585,6 +593,7 @@ pub struct ConfigFile {
     vscode: Option<VscodeConfig>,
 
     #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
+<<<<<<< HEAD
     doom: Option<DoomConfig>,
 
     #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
@@ -595,6 +604,9 @@ pub struct ConfigFile {
 
     #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
     pkgfile: Option<Pkgfile>,
+=======
+    uv_python: Option<UvPythonConfig>,
+>>>>>>> pr-1122
 }
 
 fn config_directory() -> PathBuf {
@@ -917,9 +929,6 @@ pub struct CommandLineArgs {
     #[arg(long, hide = true)]
     pub gen_manpage: bool,
 
-    /// Don't update Topgrade
-    #[arg(long = "no-self-update")]
-    pub no_self_update: bool,
 }
 
 fn env_args_parser(arg: &str) -> Result<(String, String)> {
@@ -1133,16 +1142,7 @@ impl Config {
         enabled_steps
     }
 
-    /// Tell whether we should run a self-update.
-    pub fn no_self_update(&self) -> bool {
-        self.opt.no_self_update
-            || self
-                .config_file
-                .misc
-                .as_ref()
-                .and_then(|misc| misc.no_self_update)
-                .unwrap_or(false)
-    }
+
 
     /// Tell whether we should run in tmux.
     pub fn run_in_tmux(&self) -> bool {
@@ -2115,6 +2115,29 @@ impl Config {
                 }
             })
             .unwrap_or_default()
+
+    pub fn enable_uv_python(&self) -> bool {
+        self.config_file
+            .uv_python
+            .as_ref()
+            .and_then(|uv_python| uv_python.enable_uv_python_update)
+            .unwrap_or(false)
+    }
+
+    pub fn uv_python_reinstall_tools(&self) -> bool {
+        self.config_file
+            .uv_python
+            .as_ref()
+            .and_then(|uv_python| uv_python.reinstall_tools)
+            .unwrap_or(true)
+    }
+
+    pub fn uv_python_post_commands(&self) -> Option<&[String]> {
+        self.config_file
+            .uv_python
+            .as_ref()
+            .and_then(|uv_python| uv_python.post_commands.as_deref())
+
     }
 }
 
