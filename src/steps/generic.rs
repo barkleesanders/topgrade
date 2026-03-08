@@ -25,7 +25,7 @@ use crate::output_changed_message;
 use crate::step::Step;
 use crate::sudo::SudoExecuteOpts;
 use crate::terminal::{print_separator, shell};
-use crate::utils::{PathExt, check_is_python_2_or_shim, get_require_sudo_string, require, require_one, require_option, run_with_shell, which};
+use crate::utils::{PathExt, check_is_python_2_or_shim, require, require_one, require_option, run_with_shell, which};
 use crate::{
     error::{DryRun, SkipStep, StepFailed, TopgradeError},
     terminal::print_warning,

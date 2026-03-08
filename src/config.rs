@@ -593,7 +593,6 @@ pub struct ConfigFile {
     vscode: Option<VscodeConfig>,
 
     #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
-<<<<<<< HEAD
     doom: Option<DoomConfig>,
 
     #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
@@ -604,9 +603,9 @@ pub struct ConfigFile {
 
     #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
     pkgfile: Option<Pkgfile>,
-=======
+
+    #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
     uv_python: Option<UvPythonConfig>,
->>>>>>> pr-1122
 }
 
 fn config_directory() -> PathBuf {
@@ -2115,6 +2114,7 @@ impl Config {
                 }
             })
             .unwrap_or_default()
+    }
 
     pub fn enable_uv_python(&self) -> bool {
         self.config_file
