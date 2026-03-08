@@ -97,12 +97,10 @@
 # Run specific steps - same options as the command line flag
 # only = ["system", "emacs"]
 
-# Whether to self update
+# To disable self update, use:
+# disable = ["self_update"]
 #
-# this will be ignored if the binary is built without self update support
-#
-# available also via setting the environment variable TOPGRADE_NO_SELF_UPGRADE)
-# no_self_update = true
+# or set the environment variable TOPGRADE_NO_SELF_UPGRADE
 
 # Extra tracing filter directives
 # These are prepended to the `--log-filter` argument
