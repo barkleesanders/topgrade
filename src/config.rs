@@ -397,6 +397,8 @@ pub struct Misc {
 
     show_distribution_summary: Option<bool>,
 
+    tmux_auto_exit: Option<bool>,
+
     nix_handler: Option<NixHandler>,
 
     github_token: Option<String>,
@@ -2264,6 +2266,15 @@ impl Config {
             .as_ref()
             .and_then(|uv_python| uv_python.post_commands.as_deref())
 
+    }
+
+    /// Whether to auto-exit (skip the R/S/Q prompt) when running in tmux.
+    pub fn tmux_auto_exit(&self) -> bool {
+        self.config_file
+            .misc
+            .as_ref()
+            .and_then(|misc| misc.tmux_auto_exit)
+            .unwrap_or(false)
     }
 
     /// Get the trigger command for a step, if configured.

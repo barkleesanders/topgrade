@@ -319,7 +319,11 @@ fn run() -> Result<()> {
         }
     }
 
-    if config.keep_at_end() {
+    // Skip the R/S/Q prompt when tmux_auto_exit is set and we're running in tmux
+    let in_tmux = env::var("TMUX").is_ok();
+    let skip_prompt = in_tmux && config.tmux_auto_exit();
+
+    if config.keep_at_end() && !skip_prompt {
         print_info(t!("\n(R)eboot\n(S)hell\n(Q)uit"));
         loop {
             match get_key() {
