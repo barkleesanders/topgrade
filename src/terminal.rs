@@ -8,7 +8,7 @@ use std::time::Duration;
 use chrono::{Local, Timelike};
 use color_eyre::eyre;
 use color_eyre::eyre::Context;
-use console::{Key, Term, measure_text_width, style};
+use console::{Color, Key, Term, measure_text_width, style};
 use notify_rust::{Notification, Timeout};
 use rust_i18n::t;
 use tracing::{debug, error};
@@ -44,6 +44,7 @@ struct Terminal {
     desktop_notification: bool,
     show_step_ids: bool,
     current_step_id: Option<String>,
+    separator_color: Option<Color>,
 }
 
 impl Terminal {
@@ -58,11 +59,16 @@ impl Terminal {
             desktop_notification: false,
             show_step_ids: false,
             current_step_id: None,
+            separator_color: None,
         }
     }
 
     fn set_show_step_ids(&mut self, show: bool) {
         self.show_step_ids = show;
+    }
+
+    fn set_separator_color(&mut self, color: Option<Color>) {
+        self.separator_color = color;
     }
 
     fn set_current_step_id(&mut self, step_id: Option<String>) {
@@ -132,24 +138,25 @@ impl Terminal {
 
         match self.width {
             Some(width) => {
-                self.term
-                    .write_fmt(format_args!(
-                        "{}\n",
-                        style(format_args!(
-                            "\n── {} {:─^border$}",
-                            message,
-                            "",
-                            border = max(
-                                2,
-                                min(80, width as usize)
-                                    .checked_sub(4)
-                                    .and_then(|e| e.checked_sub(measure_text_width(&message)))
-                                    .unwrap_or(0)
-                            )
-                        ))
-                        .bold()
-                    ))
-                    .ok();
+                let styled = style(format!(
+                    "\n── {} {:─^border$}",
+                    message,
+                    "",
+                    border = max(
+                        2,
+                        min(80, width as usize)
+                            .checked_sub(4)
+                            .and_then(|e| e.checked_sub(measure_text_width(&message)))
+                            .unwrap_or(0)
+                    )
+                ))
+                .bold();
+                let styled = if let Some(color) = self.separator_color {
+                    styled.fg(color)
+                } else {
+                    styled
+                };
+                self.term.write_fmt(format_args!("{styled}\n")).ok();
             }
             None => {
                 self.term.write_fmt(format_args!("―― {message} ――\n")).ok();
@@ -366,6 +373,28 @@ pub fn set_show_step_ids(show: bool) {
 
 pub fn set_current_step_id(step_id: Option<String>) {
     TERMINAL.lock().unwrap().set_current_step_id(step_id);
+}
+
+/// Parse a color name string into a console::Color.
+pub fn parse_color(name: &str) -> Option<Color> {
+    match name.to_lowercase().as_str() {
+        "black" => Some(Color::Black),
+        "red" => Some(Color::Red),
+        "green" => Some(Color::Green),
+        "yellow" => Some(Color::Yellow),
+        "blue" => Some(Color::Blue),
+        "magenta" | "purple" => Some(Color::Magenta),
+        "cyan" => Some(Color::Cyan),
+        "white" => Some(Color::White),
+        _ => {
+            // Try parsing as a 256-color index (e.g., "208" for orange)
+            name.parse::<u8>().ok().map(Color::Color256)
+        }
+    }
+}
+
+pub fn set_separator_color(color: Option<Color>) {
+    TERMINAL.lock().unwrap().set_separator_color(color);
 }
 
 /// Print a summary of all updated components collected during the run.

@@ -118,6 +118,15 @@
 #   autodetect, nh, vanilla
 # nix_handler = "autodetect"
 
+# GitHub token for self-update to avoid rate limiting.
+# Can also be set via TOPGRADE_GITHUB_TOKEN or GITHUB_TOKEN environment variables.
+# github_token = "ghp_..."
+
+# Customize the separator line color.
+# Accepted values: black, red, green, yellow, blue, magenta, cyan, white
+# or a 256-color index (e.g., "208" for orange).
+# separator_color = "cyan"
+
 
 # Commands to run before anything
 [pre_commands]
@@ -244,6 +253,14 @@
 
 # Extra Home Manager arguments
 # home_manager_arguments = ["--flake", "file"]
+
+# Override distribution detection for derivative distros.
+# Useful when your distro is not detected correctly.
+# Accepted values: alpine, arch, centos, debian, fedora, gentoo, nixos, opensuse, void, etc.
+# distribution_override = "arch"
+
+# Nix flake directories to update (requires nix flake support)
+# nix_flake_dirs = ["~/nixos-config", "~/my-flake"]
 
 # KDE Plasmoids (package IDs or exact names) to exclude from updates.
 # excluded_plasmoids = [""]

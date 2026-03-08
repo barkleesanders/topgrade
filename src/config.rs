@@ -461,6 +461,8 @@ pub struct Misc {
     nix_handler: Option<NixHandler>,
 
     github_token: Option<String>,
+
+    separator_color: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, ValueEnum, Default)]
@@ -642,6 +644,7 @@ pub struct ConfigFile {
     include: Option<Include>,
 
     #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
+    #[serde(alias = "general")]
     misc: Option<Misc>,
 
     #[merge(strategy = crate::utils::merge_strategies::commands_merge_opt)]
@@ -2002,6 +2005,14 @@ impl Config {
             .and_then(|misc| misc.github_token.clone())
             .or_else(|| std::env::var("TOPGRADE_GITHUB_TOKEN").ok())
             .or_else(|| std::env::var("GITHUB_TOKEN").ok())
+    }
+
+    /// Get the configured separator color name (e.g., "cyan", "green", "red")
+    pub fn separator_color(&self) -> Option<&str> {
+        self.config_file
+            .misc
+            .as_ref()
+            .and_then(|misc| misc.separator_color.as_deref())
     }
 
     pub fn enable_mandb(&self) -> bool {
