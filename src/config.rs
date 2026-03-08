@@ -393,9 +393,20 @@ pub struct Vim {
 }
 
 #[derive(Deserialize, Default, Debug, Merge)]
-#[serde(deny_unknown_fields)]
 pub struct Misc {
     allow_root: Option<bool>,
+
+    /// Deprecated: kept for backwards compatibility, ignored
+    #[serde(default)]
+    no_retry: Option<bool>,
+
+    /// Deprecated: kept for backwards compatibility, ignored
+    #[serde(default)]
+    no_self_update: Option<bool>,
+
+    /// Deprecated: kept for backwards compatibility, ignored
+    #[serde(default)]
+    skip_notify: Option<bool>,
 
     pre_sudo: Option<bool>,
 
