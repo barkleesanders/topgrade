@@ -184,6 +184,30 @@ impl<'a> Runner<'a> {
                 Ok(updated) => {
                     // Record successful run for frequency tracking
                     crate::frequency::record_step_run(step);
+
+                    // Run post-update trigger command if configured
+                    if let Some(trigger) = self.ctx.config().step_trigger(step) {
+                        debug!("Running trigger for step {:?}: {}", step, trigger);
+                        match std::process::Command::new("sh")
+                            .args(["-c", trigger])
+                            .status()
+                        {
+                            Ok(status) if status.success() => {
+                                debug!("Trigger for step {:?} completed successfully", step);
+                            }
+                            Ok(status) => {
+                                print_warning(format!(
+                                    "Trigger for {} exited with status {}",
+                                    step,
+                                    status.code().unwrap_or(-1)
+                                ));
+                            }
+                            Err(e) => {
+                                print_warning(format!("Failed to run trigger for {}: {}", step, e));
+                            }
+                        }
+                    }
+
                     self.push_result(key, StepResult::Success(updated.map(UpdatedComponents::new)));
                     break;
                 }

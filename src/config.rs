@@ -682,6 +682,9 @@ pub struct ConfigFile {
 
     #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
     step_order: Option<StepOrder>,
+
+    #[merge(strategy = crate::utils::merge_strategies::commands_merge_opt)]
+    triggers: Option<Commands>,
 }
 
 fn config_directory() -> PathBuf {
@@ -2261,6 +2264,18 @@ impl Config {
             .as_ref()
             .and_then(|uv_python| uv_python.post_commands.as_deref())
 
+    }
+
+    /// Get the trigger command for a step, if configured.
+    ///
+    /// ```toml
+    /// [triggers]
+    /// flatpak = "systemctl restart discord"
+    /// ```
+    pub fn step_trigger(&self, step: Step) -> Option<&str> {
+        let triggers = self.config_file.triggers.as_ref()?;
+        let key = step.to_string();
+        triggers.get(&key).map(|s| s.as_str())
     }
 
     /// Get the step ordering rules from the config file.
