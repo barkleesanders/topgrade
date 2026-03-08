@@ -1298,7 +1298,17 @@ pub fn run_raco_update(ctx: &ExecutionContext) -> Result<()> {
 
     print_separator(t!("Racket Package Manager"));
 
-    ctx.execute(raco).args(["pkg", "update", "--all"]).status_checked()
+    // Update user-scope packages
+    ctx.execute(&raco).args(["pkg", "update", "--all"]).status_checked()?;
+
+    // Update system-scope (installation-wide) packages with sudo
+    if let Ok(sudo) = ctx.require_sudo() {
+        sudo.execute(ctx, &raco)?
+            .args(["pkg", "update", "--all", "--scope", "installation"])
+            .status_checked()?;
+    }
+
+    Ok(())
 }
 
 pub fn bin_update(ctx: &ExecutionContext) -> Result<()> {
