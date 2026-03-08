@@ -1190,10 +1190,10 @@ pub fn run_atuin(ctx: &ExecutionContext) -> Result<()> {
 
 pub fn reboot(ctx: &ExecutionContext) -> Result<()> {
     // Prefer `systemctl reboot` on systemd-based systems
-    if Path::new("/run/systemd/system").exists() {
-        if let Ok(systemctl) = require("systemctl") {
-            return ctx.execute(systemctl).arg("reboot").status_checked();
-        }
+    if Path::new("/run/systemd/system").exists()
+        && let Ok(systemctl) = require("systemctl")
+    {
+        return ctx.execute(systemctl).arg("reboot").status_checked();
     }
 
     match ctx.sudo() {
@@ -1204,10 +1204,10 @@ pub fn reboot(ctx: &ExecutionContext) -> Result<()> {
 
 pub fn poweroff(ctx: &ExecutionContext) -> Result<()> {
     // Prefer `systemctl poweroff` on systemd-based systems
-    if Path::new("/run/systemd/system").exists() {
-        if let Ok(systemctl) = require("systemctl") {
-            return ctx.execute(systemctl).arg("poweroff").status_checked();
-        }
+    if Path::new("/run/systemd/system").exists()
+        && let Ok(systemctl) = require("systemctl")
+    {
+        return ctx.execute(systemctl).arg("poweroff").status_checked();
     }
 
     match ctx.sudo() {
