@@ -2563,8 +2563,17 @@ pub fn run_ytdlp(ctx: &ExecutionContext) -> Result<()> {
         return Ok(());
     }
 
-    // Check if it failed due to a permission error (e.g., installed to /usr/local/bin)
     let combined_lower = combined.to_lowercase();
+
+    // If it hit a GitHub API rate limit, skip gracefully instead of failing
+    if combined_lower.contains("rate limit") {
+        std::io::stderr().lock().write_all(&output.stderr).unwrap();
+        return Err(
+            SkipStep("yt-dlp update skipped: GitHub API rate limit exceeded, try again later".to_string()).into(),
+        );
+    }
+
+    // Check if it failed due to a permission error (e.g., installed to /usr/local/bin)
     if combined_lower.contains("unable to write") || combined_lower.contains("permission denied") {
         // Retry with sudo
         let sudo = ctx.require_sudo()?;
