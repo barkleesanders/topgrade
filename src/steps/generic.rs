@@ -1030,6 +1030,19 @@ pub fn run_custom_command(name: &str, command: &str, ctx: &ExecutionContext) -> 
     } else {
         command
     };
+
+    // Expose topgrade state as environment variables for custom commands (#1013)
+    exec.env("TOPGRADE_DRY_RUN", if ctx.run_type().dry() { "1" } else { "0" });
+    exec.env("TOPGRADE_CLEANUP", if ctx.config().cleanup() { "1" } else { "0" });
+    exec.env(
+        "TOPGRADE_YES",
+        if ctx.config().yes(Step::CustomCommands) {
+            "1"
+        } else {
+            "0"
+        },
+    );
+
     exec.arg("-c").arg(command).status_checked()
 }
 
