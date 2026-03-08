@@ -11,6 +11,13 @@
 <a href="https://formulae.brew.sh/formula/topgrade"><img alt="Homebrew" src="https://img.shields.io/homebrew/v/topgrade.svg"></a>
 
   <img alt="Demo" src="https://github.com/topgrade-rs/topgrade/blob/main/doc/topgrade_demo.gif?raw=true">
+
+  <br><br>
+
+  <h3>🎬 Feature Showcase</h3>
+
+https://github.com/barkleesanders/topgrade/raw/main/doc/topgrade-showcase.mp4
+
 </div>
 
 ## About This Fork
