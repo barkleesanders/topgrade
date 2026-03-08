@@ -1078,6 +1078,10 @@ pub struct CommandLineArgs {
     /// List available steps and exit
     #[arg(long = "list-steps")]
     list_steps: bool,
+
+    /// Write log output to a file (in addition to stderr)
+    #[arg(long = "log-file", value_name = "PATH")]
+    log_file: Option<PathBuf>,
 }
 
 fn env_args_parser(arg: &str) -> Result<(String, String)> {
@@ -1119,6 +1123,11 @@ impl CommandLineArgs {
         }
 
         ret
+    }
+
+    /// Get the log file path (for early tracing setup before Config is loaded).
+    pub fn log_file_path(&self) -> Option<&Path> {
+        self.log_file.as_deref()
     }
 }
 
@@ -1995,6 +2004,11 @@ impl Config {
 
     pub fn list_steps(&self) -> bool {
         self.opt.list_steps
+    }
+
+    /// Get the log file path if specified via CLI.
+    pub fn log_file(&self) -> Option<&Path> {
+        self.opt.log_file.as_deref()
     }
 
     /// Get the GitHub token for self-update, checking config file and environment variables.

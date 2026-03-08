@@ -80,7 +80,7 @@ fn run() -> Result<()> {
     //
     // For more info, see the comments in `CommandLineArgs::tracing_filter_directives()`
     // and `Config::tracing_filter_directives()`.
-    let reload_handle = install_tracing(&opt.tracing_filter_directives())?;
+    let reload_handle = install_tracing(&opt.tracing_filter_directives(), opt.log_file_path())?;
 
     // Get current system locale and set it as the default locale
     let system_locale = sys_locale::get_locale().unwrap_or("en".to_string());

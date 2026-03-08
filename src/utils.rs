@@ -286,7 +286,7 @@ pub fn check_is_python_2_or_shim(ctx: &ExecutionContext, python: PathBuf) -> Res
 /// # Return value
 /// A reload handle will be returned so that we can change the log level at
 /// runtime.
-pub fn install_tracing(filter_directives: &str) -> Result<Handle<EnvFilter, Registry>> {
+pub fn install_tracing(filter_directives: &str, log_file: Option<&Path>) -> Result<Handle<EnvFilter, Registry>> {
     let env_filter = EnvFilter::try_new(filter_directives)
         .or_else(|_| EnvFilter::try_from_default_env())
         .or_else(|_| EnvFilter::try_new(DEFAULT_LOG_LEVEL))?;
@@ -295,7 +295,20 @@ pub fn install_tracing(filter_directives: &str) -> Result<Handle<EnvFilter, Regi
 
     let (filter, reload_handle) = Layer::new(env_filter);
 
-    registry().with(filter).with(fmt_layer).init();
+    if let Some(log_path) = log_file {
+        // Create parent directories if needed
+        if let Some(parent) = log_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        let file = std::fs::OpenOptions::new().create(true).append(true).open(log_path)?;
+        let file_layer = fmt::layer()
+            .with_target(true)
+            .with_ansi(false)
+            .with_writer(std::sync::Mutex::new(file));
+        registry().with(filter).with(fmt_layer).with(file_layer).init();
+    } else {
+        registry().with(filter).with(fmt_layer).init();
+    }
 
     Ok(reload_handle)
 }
