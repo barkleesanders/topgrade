@@ -476,7 +476,16 @@ impl Sudo {
                     cmd.arg("-a");
                     cmd.arg(vars.iter().join(","));
                 }
-                SudoKind::Doas | SudoKind::WinSudo | SudoKind::Gsudo | SudoKind::Pkexec => {
+                SudoKind::Doas => {
+                    // doas supports passing env vars via setenv syntax:
+                    // doas VAR=value command
+                    for var in &vars {
+                        if let Ok(val) = std::env::var(var) {
+                            cmd.arg(format!("{var}={val}"));
+                        }
+                    }
+                }
+                SudoKind::WinSudo | SudoKind::Gsudo | SudoKind::Pkexec => {
                     return Err(UnsupportedSudo {
                         sudo_kind: self.kind,
                         option: "preserve_env_list",
