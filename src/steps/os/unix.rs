@@ -614,9 +614,8 @@ pub fn run_nix(ctx: &ExecutionContext) -> Result<()> {
     let nix_handler = ctx.config().nix_handler();
     let use_nom = match nix_handler {
         NixHandler::Nom => {
-            require("nom").map_err(|_| {
-                SkipStep(t!("nom (nix-output-monitor) is configured but not installed").to_string())
-            })?;
+            require("nom")
+                .map_err(|_| SkipStep(t!("nom (nix-output-monitor) is configured but not installed").to_string()))?;
             true
         }
         NixHandler::Autodetect => require("nom").is_ok(),

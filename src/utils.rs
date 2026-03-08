@@ -356,9 +356,7 @@ pub fn levenshtein_distance(a: &str, b: &str) -> usize {
         curr_row[0] = i + 1;
         for (j, b_ch) in b.chars().enumerate() {
             let cost = if a_ch == b_ch { 0 } else { 1 };
-            curr_row[j + 1] = (prev_row[j + 1] + 1)
-                .min(curr_row[j] + 1)
-                .min(prev_row[j] + cost);
+            curr_row[j + 1] = (prev_row[j + 1] + 1).min(curr_row[j] + 1).min(prev_row[j] + cost);
         }
         std::mem::swap(&mut prev_row, &mut curr_row);
     }

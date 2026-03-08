@@ -55,6 +55,17 @@ To remedy this, **Topgrade** detects which tools you use and runs the appropriat
 - NixOS or Nix (nixpkgs): [topgrade](https://search.nixos.org/packages?show=topgrade)
 - Void Linux: [`sudo xbps-install -S topgrade`](https://voidlinux.org/packages/?arch=x86_64&q=topgrade)
 
+### Windows Features
+
+On Windows, Topgrade supports updating:
+
+- **Package Managers**: Chocolatey, Scoop, Winget
+- **System Updates**: Windows Update, Microsoft Store apps
+- **Driver Updates**: SDIO (Snappy Driver Installer Origin) - *requires explicit opt-in*
+- **Development Tools**: Various language package managers and development environments
+
+*Note: Driver updates via SDIO require setting `enable_sdio = true` in your configuration file due to the critical nature of driver installations.*
+
 ## Usage
 
 Just run `topgrade`.

@@ -188,10 +188,7 @@ impl<'a> Runner<'a> {
                     // Run post-update trigger command if configured
                     if let Some(trigger) = self.ctx.config().step_trigger(step) {
                         debug!("Running trigger for step {:?}: {}", step, trigger);
-                        match std::process::Command::new("sh")
-                            .args(["-c", trigger])
-                            .status()
-                        {
+                        match std::process::Command::new("sh").args(["-c", trigger]).status() {
                             Ok(status) if status.success() => {
                                 debug!("Trigger for step {:?} completed successfully", step);
                             }

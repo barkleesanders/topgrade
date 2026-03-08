@@ -265,11 +265,7 @@ fn run() -> Result<()> {
             let current = crate_version!();
             println!(
                 "{}",
-                t!(
-                    "Self-update: {old} -> {new}",
-                    old = old_version,
-                    new = current
-                )
+                t!("Self-update: {old} -> {new}", old = old_version, new = current)
             );
         }
 
@@ -388,15 +384,17 @@ fn spawn_sudo_loop(ctx: &execution_context::ExecutionContext, config: &Config) -
     let (tx, rx) = std::sync::mpsc::channel::<()>();
     std::thread::Builder::new()
         .name("sudo-loop".into())
-        .spawn(move || loop {
-            match rx.recv_timeout(interval) {
-                Ok(()) | Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
-                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
-                    if let Err(err) = sudo.refresh(run_type) {
-                        print_warning(t!(
-                            "Failed to refresh sudo credentials: {error}",
-                            error = format!("{err:?}")
-                        ));
+        .spawn(move || {
+            loop {
+                match rx.recv_timeout(interval) {
+                    Ok(()) | Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
+                    Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                        if let Err(err) = sudo.refresh(run_type) {
+                            print_warning(t!(
+                                "Failed to refresh sudo credentials: {error}",
+                                error = format!("{err:?}")
+                            ));
+                        }
                     }
                 }
             }

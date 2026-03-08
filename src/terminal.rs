@@ -374,15 +374,16 @@ pub fn print_updated_components_summary(report: &[(impl AsRef<str>, StepResult)]
 
     for (key, result) in report {
         if let StepResult::Success(Some(updated)) = result
-            && !updated.0.is_empty() {
-                if !any_updates {
-                    any_updates = true;
-                    print_separator("Updated Components");
-                }
-                println!("{}:", key.as_ref());
-                for component in &updated.0 {
-                    println!("  - {component}");
-                }
+            && !updated.0.is_empty()
+        {
+            if !any_updates {
+                any_updates = true;
+                print_separator("Updated Components");
             }
+            println!("{}:", key.as_ref());
+            for component in &updated.0 {
+                println!("  - {component}");
+            }
+        }
     }
 }

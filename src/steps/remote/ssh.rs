@@ -69,10 +69,7 @@ pub fn ssh_step(ctx: &ExecutionContext, hostname: &str) -> Result<()> {
         // Use status_checked_with_codes_returning to detect exit code 2 (user quit).
         // When a remote topgrade exits with code 2, propagate the quit to the
         // local instance instead of continuing with the remaining steps.
-        let status = ctx
-            .execute(ssh)
-            .args(&args)
-            .status_checked_with_codes_returning(&[2])?;
+        let status = ctx.execute(ssh).args(&args).status_checked_with_codes_returning(&[2])?;
 
         if status.code() == Some(2) {
             return Err(io::Error::from(io::ErrorKind::Interrupted))

@@ -356,9 +356,7 @@ fn check_zypper_needs_reboot(ctx: &ExecutionContext) {
     // `zypper needs-rebooting` exits 0 if reboot needed, 1 if not
     if let Ok(zypper) = which("zypper") {
         #[allow(clippy::disallowed_methods)]
-        let status = std::process::Command::new(&zypper)
-            .arg("needs-rebooting")
-            .status();
+        let status = std::process::Command::new(&zypper).arg("needs-rebooting").status();
         if let Ok(s) = status {
             if s.success() {
                 println!("{}", t!("System needs a reboot after updates."));

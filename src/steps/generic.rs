@@ -17,11 +17,11 @@ use tempfile::tempfile_in;
 use tracing::{debug, error, warn};
 
 use crate::HOME_DIR;
-use crate::runner::UpdatedComponent;
 use crate::command::{CommandExt, Utf8Output};
 use crate::execution_context::ExecutionContext;
 use crate::executor::ExecutorOutput;
 use crate::output_changed_message;
+use crate::runner::UpdatedComponent;
 use crate::step::Step;
 use crate::sudo::SudoExecuteOpts;
 use crate::terminal::{print_separator, shell};
@@ -2110,7 +2110,6 @@ pub fn run_ldcup(ctx: &ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-
 pub fn run_ollama_pull(ctx: &ExecutionContext) -> Result<()> {
     let ollama = require("ollama")?;
 
@@ -2131,9 +2130,7 @@ pub fn run_ollama_pull(ctx: &ExecutionContext) -> Result<()> {
             .expect("The format of `ollama list` output has changed, file an issue to Topgrade!");
         assert!(model_name.contains(':'), "a tag should be included in the model name");
 
-        ctx.execute(&ollama)
-            .args(["pull", model_name])
-            .status_checked()?;
+        ctx.execute(&ollama).args(["pull", model_name]).status_checked()?;
     }
 
     Ok(())
@@ -2391,11 +2388,7 @@ pub fn run_ytdlp(ctx: &ExecutionContext) -> Result<()> {
     // Check if yt-dlp was installed via a package manager by inspecting the
     // output of `yt-dlp -U`. If it mentions pip, brew, or another package
     // manager, skip since the package manager handles updates.
-    let output = ctx
-        .execute(&ytdlp)
-        .always()
-        .args(["-U"])
-        .output()?;
+    let output = ctx.execute(&ytdlp).always().args(["-U"]).output()?;
 
     let output = match output {
         ExecutorOutput::Wet(output) => output,
@@ -2410,11 +2403,11 @@ pub fn run_ytdlp(ctx: &ExecutionContext) -> Result<()> {
 
     // If managed by a package manager, skip the self-update
     let pkg_manager_keywords = ["pip", "brew", "pacman", "apt", "choco", "scoop", "winget", "nix"];
-    if pkg_manager_keywords.iter().any(|kw| combined.to_lowercase().contains(kw)) {
-        return Err(SkipStep(
-            "yt-dlp is managed by a package manager; skipping self-update".to_string(),
-        )
-        .into());
+    if pkg_manager_keywords
+        .iter()
+        .any(|kw| combined.to_lowercase().contains(kw))
+    {
+        return Err(SkipStep("yt-dlp is managed by a package manager; skipping self-update".to_string()).into());
     }
 
     print_separator("yt-dlp");

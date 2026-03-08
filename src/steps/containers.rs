@@ -291,9 +291,7 @@ pub fn run_containers(ctx: &ExecutionContext) -> Result<()> {
                             .args(["restart", container_id])
                             .status_checked()
                     } else {
-                        ctx.execute(&crt)
-                            .args(["restart", container_id])
-                            .status_checked()
+                        ctx.execute(&crt).args(["restart", container_id]).status_checked()
                     };
                     if let Err(e) = restart_result {
                         warn!("Failed to restart container {}: {}", container_id, e);
