@@ -316,37 +316,74 @@ impl RepoStep {
         debug_assert!(_removed);
     }
 
+    /// Check if a repo is a colocated jujutsu+git repository (has .jj directory).
+    fn is_jujutsu_repo<P: AsRef<Path>>(repo: P) -> bool {
+        repo.as_ref().join(".jj").is_dir()
+    }
+
     /// Try to pull a repo, or fetch it if `fetch_only` is enabled.
+    /// For colocated jujutsu+git repos (`.jj` directory present alongside `.git`),
+    /// uses `jj git fetch` instead of `git pull`/`git fetch`.
     async fn pull_or_fetch_repo<P: AsRef<Path>>(&self, ctx: &ExecutionContext<'_>, repo: P) -> Result<()> {
         let before_revision = get_head_revision(ctx, &self.git, &repo);
         let is_fetch_only = ctx.config().git_fetch_only();
+        let use_jj = Self::is_jujutsu_repo(&repo) && require("jj").is_ok();
 
         if ctx.config().verbose() {
-            let action = if is_fetch_only { t!("Fetching") } else { t!("Pulling") };
+            let action = if use_jj {
+                t!("Fetching (jj)")
+            } else if is_fetch_only {
+                t!("Fetching")
+            } else {
+                t!("Pulling")
+            };
             println!("{} {}", style(action).cyan().bold(), repo.as_ref().display());
         }
 
-        let mut command = AsyncCommand::new(&self.git);
-        command.stdin(Stdio::null()).current_dir(&repo);
-
-        if is_fetch_only {
-            command.args(["fetch", "--recurse-submodules"]);
+        let output = if use_jj {
+            // For colocated jj+git repos, use `jj git fetch` which handles
+            // both fetch and pull semantics correctly.
+            let jj = require("jj").unwrap();
+            let mut command = AsyncCommand::new(jj);
+            command.stdin(Stdio::null()).current_dir(&repo);
+            command.args(["git", "fetch"]);
+            command.output().await?
         } else {
-            command.args(["pull", "--ff-only", "--recurse-submodules"]);
-        }
+            let mut command = AsyncCommand::new(&self.git);
+            command.stdin(Stdio::null()).current_dir(&repo);
 
-        if let Some(extra_arguments) = ctx.config().git_arguments() {
-            command.args(extra_arguments.split_whitespace());
-        }
+            if is_fetch_only {
+                command.args(["fetch", "--recurse-submodules"]);
+            } else {
+                command.args(["pull", "--ff-only", "--recurse-submodules"]);
+            }
 
-        let output = command.output().await?;
+            if let Some(extra_arguments) = ctx.config().git_arguments() {
+                command.args(extra_arguments.split_whitespace());
+            }
+
+            command.output().await?
+        };
+
         let result = output_checked_utf8(output).wrap_err_with(|| {
-            let action = if is_fetch_only { "fetch" } else { "pull" };
+            let action = if use_jj {
+                "jj git fetch"
+            } else if is_fetch_only {
+                "fetch"
+            } else {
+                "pull"
+            };
             format!("Failed to {} {}", action, repo.as_ref().display())
         });
 
         if result.is_err() {
-            let action = if is_fetch_only { t!("fetching") } else { t!("pulling") };
+            let action = if use_jj {
+                t!("jj git fetch")
+            } else if is_fetch_only {
+                t!("fetching")
+            } else {
+                t!("pulling")
+            };
             println!(
                 "{} {} {}",
                 style(t!("Failed")).red().bold(),
