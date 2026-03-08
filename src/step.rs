@@ -6,6 +6,7 @@ use color_eyre::Result;
 #[cfg(target_os = "linux")]
 use rust_i18n::t;
 use serde::Deserialize;
+use std::sync::Mutex;
 use strum::{EnumCount, EnumIter, EnumString, VariantNames};
 
 #[cfg(feature = "self-update")]
@@ -17,17 +18,60 @@ use crate::utils::hostname;
 
 pub const DEPRECATED_STEPS: [Step; 0] = [];
 
-/// Parse a step name from a string, with fuzzy matching suggestions on failure.
+/// Tracks custom command names that were passed via --only/--disable but
+/// aren't recognized Step enum variants. These will be treated as custom
+/// command names from the [commands] config section.
+static CUSTOM_ONLY_NAMES: Mutex<Vec<String>> = Mutex::new(Vec::new());
+static CUSTOM_DISABLE_NAMES: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
+/// Get custom command names passed via --only.
+pub fn custom_only_names() -> Vec<String> {
+    CUSTOM_ONLY_NAMES.lock().unwrap().clone()
+}
+
+/// Get custom command names passed via --disable.
+pub fn custom_disable_names() -> Vec<String> {
+    CUSTOM_DISABLE_NAMES.lock().unwrap().clone()
+}
+
+/// Parse a step name from a string for --only.
+/// If the name doesn't match a Step, it is treated as a custom command name
+/// from the [commands] config section.
 pub fn parse_step(s: &str) -> std::result::Result<Step, String> {
-    // Try standard ValueEnum parsing first
-    <Step as ValueEnum>::from_str(s, true).map_err(|_| {
-        let known = Step::VARIANTS;
-        let mut msg = format!("unknown step: '{s}'");
-        if let Some(suggestions) = suggest_step(s, known) {
-            msg.push_str(&format!(". Did you mean: {suggestions}?"));
+    match <Step as ValueEnum>::from_str(s, true) {
+        Ok(step) => Ok(step),
+        Err(_) => {
+            // Check if it's close to a known step name (possible typo)
+            let known = Step::VARIANTS;
+            if let Some(suggestions) = suggest_step(s, known) {
+                eprintln!(
+                    "Note: '{s}' is not a built-in step (did you mean: {suggestions}?). \
+                     Treating as custom command name."
+                );
+            }
+            // Accept as a custom command name.
+            CUSTOM_ONLY_NAMES.lock().unwrap().push(s.to_string());
+            Ok(Step::CustomCommands)
         }
-        msg
-    })
+    }
+}
+
+/// Parse a step name for --disable. Same as parse_step but records in disable list.
+pub fn parse_step_disable(s: &str) -> std::result::Result<Step, String> {
+    match <Step as ValueEnum>::from_str(s, true) {
+        Ok(step) => Ok(step),
+        Err(_) => {
+            let known = Step::VARIANTS;
+            if let Some(suggestions) = suggest_step(s, known) {
+                eprintln!(
+                    "Note: '{s}' is not a built-in step (did you mean: {suggestions}?). \
+                     Treating as custom command name."
+                );
+            }
+            CUSTOM_DISABLE_NAMES.lock().unwrap().push(s.to_string());
+            Ok(Step::CustomCommands)
+        }
+    }
 }
 
 #[derive(ValueEnum, EnumString, VariantNames, Debug, Clone, PartialEq, Eq, Hash, Deserialize, EnumIter, Copy, EnumCount, strum::Display)]

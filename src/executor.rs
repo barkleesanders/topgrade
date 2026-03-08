@@ -210,6 +210,45 @@ impl Executor {
         self
     }
 
+    /// Create a new Executor with the same program, environment variables, and
+    /// working directory as this one, but without the accumulated arguments.
+    ///
+    /// This is useful when you need to run multiple commands with the same
+    /// program and environment setup. Since `Command` doesn't implement `Clone`,
+    /// we rebuild from the stored configuration.
+    #[allow(dead_code)]
+    pub fn clone_builder(&self) -> Self {
+        match self {
+            Executor::Wet(c) | Executor::Damp(c) => {
+                #[allow(clippy::disallowed_methods)]
+                let mut new_cmd = Command::new(c.get_program());
+                for (key, val) in c.get_envs() {
+                    if let Some(val) = val {
+                        new_cmd.env(key, val);
+                    } else {
+                        new_cmd.env_remove(key);
+                    }
+                }
+                if let Some(dir) = c.get_current_dir() {
+                    new_cmd.current_dir(dir);
+                }
+                match self {
+                    Executor::Wet(_) => Executor::Wet(new_cmd),
+                    Executor::Damp(_) => Executor::Damp(new_cmd),
+                    _ => unreachable!(),
+                }
+            }
+            Executor::Dry(c) => {
+                let mut new_dry = DryCommand::new(&c.program);
+                new_dry.directory = c.directory.clone();
+                new_dry.envs = c.envs.clone();
+                new_dry.env_removals = c.env_removals.clone();
+                // Note: stdin and args are NOT cloned — this is a fresh builder
+                Executor::Dry(new_dry)
+            }
+        }
+    }
+
     fn log_command(&self) {
         match self {
             Executor::Wet(_) => (),
@@ -457,6 +496,52 @@ mod test {
                 assert_eq!(String::from_utf8_lossy(&o.stdout).trim(), "preserved_value");
             }
             ExecutorOutput::Dry => panic!("Expected Wet output after .always()"),
+        }
+    }
+
+    /// Test that clone_builder creates a new executor with the same program and env
+    /// but without arguments.
+    #[test]
+    fn test_clone_builder_dry() {
+        let mut dry = DryCommand::new("echo");
+        dry.args.push("original_arg".into());
+        dry.envs.push(("MY_VAR".into(), "my_value".into()));
+        dry.directory = Some("/tmp".into());
+
+        let executor = Executor::Dry(dry);
+        let cloned = executor.clone_builder();
+
+        match cloned {
+            Executor::Dry(c) => {
+                assert_eq!(c.program, "echo");
+                assert!(c.args.is_empty(), "clone_builder should not copy args");
+                assert_eq!(c.envs.len(), 1);
+                assert_eq!(c.envs[0].0, "MY_VAR");
+                assert_eq!(c.directory, Some("/tmp".into()));
+            }
+            _ => panic!("Expected Dry executor from clone_builder"),
+        }
+    }
+
+    #[test]
+    fn test_clone_builder_wet() {
+        #[allow(clippy::disallowed_methods)]
+        let mut cmd = Command::new("echo");
+        cmd.arg("original_arg");
+        cmd.env("MY_VAR", "my_value");
+
+        let executor = Executor::Wet(cmd);
+        let mut cloned = executor.clone_builder();
+
+        // The cloned executor should work and produce output without the original args
+        let output = cloned.arg("cloned_arg").output().unwrap();
+        match output {
+            ExecutorOutput::Wet(o) => {
+                assert!(o.status.success());
+                let stdout = String::from_utf8_lossy(&o.stdout);
+                assert_eq!(stdout.trim(), "cloned_arg");
+            }
+            ExecutorOutput::Dry => panic!("Expected Wet output"),
         }
     }
 }

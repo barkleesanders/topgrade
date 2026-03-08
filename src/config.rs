@@ -955,10 +955,10 @@ pub struct CommandLineArgs {
     auto_retry: Option<u16>,
 
     /// Do not perform upgrades for the given steps
-    #[arg(long = "disable", value_name = "STEP", value_parser = crate::step::parse_step, num_args = 1..)]
+    #[arg(long = "disable", value_name = "STEP", value_parser = crate::step::parse_step_disable, num_args = 1..)]
     disable: Vec<Step>,
 
-    /// Perform only the specified steps
+    /// Perform only the specified steps (also accepts custom command names from [commands] config)
     #[arg(long = "only", value_name = "STEP", value_parser = crate::step::parse_step, num_args = 1..)]
     only: Vec<Step>,
 
@@ -2122,11 +2122,24 @@ impl Config {
     }
 
     pub fn should_run_custom_command(&self, name: &str) -> bool {
-        if self.opt.custom_commands.is_empty() {
-            return true;
+        // Check if this custom command was explicitly disabled via --disable
+        let disabled_names = crate::step::custom_disable_names();
+        if disabled_names.iter().any(|s| s == name) {
+            return false;
         }
 
-        self.opt.custom_commands.iter().any(|s| s == name)
+        // Check if custom commands were filtered via --custom-commands flag
+        if !self.opt.custom_commands.is_empty() {
+            return self.opt.custom_commands.iter().any(|s| s == name);
+        }
+
+        // Check if custom command names were passed via --only
+        let only_names = crate::step::custom_only_names();
+        if !only_names.is_empty() {
+            return only_names.iter().any(|s| s == name);
+        }
+
+        true
     }
 
     pub fn lensfun_use_sudo(&self) -> bool {
