@@ -250,6 +250,9 @@
 # System-wide Plasmoids to exclude from updates.
 # excluded_plasmoids_system = [""]
 
+# subcommand to use for apt variants != nala (dist-upgrade (default) or upgrade)
+# apt_command = "dist-upgrade"
+
 
 [mandb]
 # Enable the mandb step (to update manual entries).
