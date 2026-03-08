@@ -74,6 +74,7 @@ pub enum Step {
     GnomeShellExtensions,
     Go,
     Guix,
+    HardwareIds,
     Haxelib,
     Helix,
     HelixDb,
@@ -377,6 +378,11 @@ impl Step {
             {
                 #[cfg(unix)]
                 runner.execute(*self, "guix", || unix::run_guix(ctx))?
+            }
+            HardwareIds =>
+            {
+                #[cfg(target_os = "linux")]
+                runner.execute(*self, "Hardware IDs", || linux::run_hardware_ids_update(ctx))?
             }
             Haxelib => runner.execute(*self, "haxelib", || generic::run_haxelib_update(ctx))?,
             Helix => runner.execute(*self, "helix", || generic::run_helix_grammars(ctx))?,
@@ -820,6 +826,7 @@ pub(crate) fn default_steps() -> Vec<Step> {
         Pkgfile,
         Plasmoids,
         PlasmoidsSystem,
+        HardwareIds,
     ]);
 
     #[cfg(unix)]

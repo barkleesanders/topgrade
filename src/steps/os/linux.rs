@@ -1300,6 +1300,26 @@ pub fn run_plasmoid_updater(ctx: &ExecutionContext, system: bool, step_name: &st
     }
 }
 
+/// Update hardware ID map files (PCI IDs, USB IDs, SMART drive DB).
+pub fn run_hardware_ids_update(ctx: &ExecutionContext) -> Result<()> {
+    let mut any_found = false;
+
+    for cmd_name in &["update-pciids", "update-usbids", "update-smart-drivedb"] {
+        if let Ok(cmd) = which(cmd_name) {
+            any_found = true;
+            let sudo = ctx.require_sudo()?;
+            print_separator(format!("Hardware IDs ({cmd_name})"));
+            sudo.execute(ctx, &cmd)?.status_checked()?;
+        }
+    }
+
+    if !any_found {
+        return Err(SkipStep(t!("No hardware ID update tools found").to_string()).into());
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
