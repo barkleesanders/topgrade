@@ -231,6 +231,8 @@ pub struct Pixi {
 #[derive(Deserialize, Default, Debug, Merge)]
 #[serde(deny_unknown_fields)]
 pub struct Brew {
+    /// Custom path to the brew binary (e.g. for Workbrew)
+    brew_path: Option<String>,
     greedy_cask: Option<bool>,
     greedy_latest: Option<bool>,
     greedy_auto_updates: Option<bool>,
@@ -400,6 +402,8 @@ pub struct Misc {
 
     tmux_session_mode: Option<TmuxSessionMode>,
 
+    multiplexer: Option<Multiplexer>,
+
     cleanup: Option<bool>,
 
     notify_each_step: Option<bool>,
@@ -449,6 +453,15 @@ pub enum NotifyEnd {
 pub struct TmuxConfig {
     pub args: Vec<String>,
     pub session_mode: TmuxSessionMode,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, ValueEnum, Default, PartialEq)]
+#[clap(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum Multiplexer {
+    #[default]
+    Tmux,
+    Zellij,
 }
 
 #[derive(Deserialize, Default, Debug, Merge)]
@@ -1171,7 +1184,7 @@ impl Config {
 
 
 
-    /// Tell whether we should run in tmux.
+    /// Tell whether we should run in a multiplexer (tmux or zellij).
     pub fn run_in_tmux(&self) -> bool {
         !self.opt.no_tmux
             && (self.opt.run_in_tmux
@@ -1181,6 +1194,15 @@ impl Config {
                     .as_ref()
                     .and_then(|misc| misc.run_in_tmux)
                     .unwrap_or(false))
+    }
+
+    /// Which multiplexer to use when run_in_tmux is true.
+    pub fn multiplexer(&self) -> Multiplexer {
+        self.config_file
+            .misc
+            .as_ref()
+            .and_then(|misc| misc.multiplexer)
+            .unwrap_or_default()
     }
 
     /// The preferred way to run the new tmux session.
@@ -1444,6 +1466,14 @@ impl Config {
             .as_ref()
             .and_then(|c| c.autoremove)
             .unwrap_or(false)
+    }
+
+    /// Custom path to the brew binary (e.g. for Workbrew installations)
+    pub fn brew_path(&self) -> Option<&str> {
+        self.config_file
+            .brew
+            .as_ref()
+            .and_then(|c| c.brew_path.as_deref())
     }
 
     /// Whether Brew should upgrade formulae built from the HEAD branch

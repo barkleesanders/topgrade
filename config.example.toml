@@ -167,6 +167,9 @@
 
 
 [brew]
+# Custom path to the brew binary (useful for Workbrew or non-standard installations)
+# brew_path = "/opt/workbrew/bin/brew"
+
 # For the BrewCask step
 # If `Repo Cask Upgrade` exists, then use the `-a` option.
 # Otherwise, use the `--greedy` option.

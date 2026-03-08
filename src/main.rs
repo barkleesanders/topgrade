@@ -49,6 +49,8 @@ mod terminal;
 #[cfg(unix)]
 mod tmux;
 mod utils;
+#[cfg(unix)]
+mod zellij;
 
 pub(crate) static HOME_DIR: LazyLock<PathBuf> = LazyLock::new(|| home_dir().expect("No home directory"));
 #[cfg(unix)]

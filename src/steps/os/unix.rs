@@ -85,10 +85,21 @@ pub struct Brew {
 
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 impl Brew {
-    fn new(variant: BrewVariant) -> Result<Self> {
+    /// Create a Brew instance, using a custom brew_path from config if available.
+    fn new_with_config(variant: BrewVariant, ctx: &ExecutionContext) -> Result<Self> {
+        let path = if matches!(variant, BrewVariant::Path) {
+            if let Some(custom_path) = ctx.config().brew_path() {
+                PathBuf::from(custom_path)
+            } else {
+                require(variant.binary_name())?
+            }
+        } else {
+            require(variant.binary_name())?
+        };
+
         Ok(Self {
             variant,
-            path: require(variant.binary_name())?,
+            path,
             sudo: brew_get_sudo(),
         })
     }
@@ -363,7 +374,7 @@ pub fn upgrade_gnome_extensions(ctx: &ExecutionContext) -> Result<()> {
 
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 pub fn run_brew_formula(ctx: &ExecutionContext, variant: BrewVariant) -> Result<()> {
-    let brew = Brew::new(variant)?;
+    let brew = Brew::new_with_config(variant, ctx)?;
 
     #[cfg(target_os = "macos")]
     {
@@ -401,7 +412,7 @@ pub fn run_brew_formula(ctx: &ExecutionContext, variant: BrewVariant) -> Result<
 
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 pub fn run_brew_cask(ctx: &ExecutionContext, variant: BrewVariant) -> Result<()> {
-    let brew = Brew::new(variant)?;
+    let brew = Brew::new_with_config(variant, ctx)?;
 
     #[cfg(target_os = "macos")]
     if variant.is_path() && !brew.is_macos_custom() {
