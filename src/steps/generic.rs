@@ -2526,16 +2526,84 @@ pub fn run_falconf(ctx: &ExecutionContext) -> Result<()> {
     ctx.execute(falconf).arg("sync").status_checked()
 }
 
+/// Try to get the latest yt-dlp version tag using `gh api` (authenticated, 5000 req/hr).
+/// Returns None if `gh` is not installed or the API call fails.
+fn ytdlp_latest_version_via_gh() -> Option<String> {
+    let gh = which_crate::which("gh").ok()?;
+    let output = std::process::Command::new(gh)
+        .args(["api", "repos/yt-dlp/yt-dlp/releases/latest", "--jq", ".tag_name"])
+        .output()
+        .ok()?;
+    if output.status.success() {
+        let tag = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if !tag.is_empty() {
+            return Some(tag);
+        }
+    }
+    None
+}
+
 pub fn run_ytdlp(ctx: &ExecutionContext) -> Result<()> {
     let ytdlp = require("yt-dlp")?;
 
-    // Check if yt-dlp was installed via a package manager by inspecting the
-    // output of `yt-dlp -U`. If it mentions pip, brew, or another package
-    // manager, skip since the package manager handles updates.
-    let output = ctx.execute(&ytdlp).always().args(["-U"]).output()?;
+    // First, get the current version to check if it's managed by a package manager.
+    let version_output = ctx.execute(&ytdlp).always().args(["--version"]).output()?;
+    let current_version = match &version_output {
+        ExecutorOutput::Wet(output) => String::from_utf8_lossy(&output.stdout).trim().to_string(),
+        ExecutorOutput::Dry => return Ok(()),
+    };
 
+    print_separator("yt-dlp");
+
+    // Strategy: use `gh api` (authenticated) to get the latest version, then
+    // pass it to `yt-dlp --update-to` which downloads directly from GitHub
+    // releases without hitting the rate-limited API.
+    if let Some(latest_tag) = ytdlp_latest_version_via_gh() {
+        if current_version == latest_tag {
+            println!("yt-dlp is up to date ({current_version})");
+            return Ok(());
+        }
+
+        println!("Updating yt-dlp {current_version} -> {latest_tag}");
+        let update_target = format!("stable@{latest_tag}");
+
+        // Try without sudo first
+        let output = ctx
+            .execute(&ytdlp)
+            .always()
+            .args(["--update-to", &update_target])
+            .output()?;
+        let output = match output {
+            ExecutorOutput::Wet(o) => o,
+            ExecutorOutput::Dry => return Ok(()),
+        };
+
+        if output.status.success() {
+            std::io::stdout().lock().write_all(&output.stdout).unwrap();
+            return Ok(());
+        }
+
+        // If permission error, retry with sudo
+        let stderr = String::from_utf8_lossy(&output.stderr).to_lowercase();
+        if stderr.contains("unable to write") || stderr.contains("permission denied") {
+            let sudo = ctx.require_sudo()?;
+            return sudo
+                .execute(ctx, &ytdlp)?
+                .args(["--update-to", &update_target])
+                .status_checked();
+        }
+
+        // Other error — report it
+        std::io::stdout().lock().write_all(&output.stdout).unwrap();
+        std::io::stderr().lock().write_all(&output.stderr).unwrap();
+        return Err(eyre!("yt-dlp self-update failed"));
+    }
+
+    // Fallback: `gh` CLI not available — use `yt-dlp -U` directly.
+    // This may hit GitHub API rate limits for unauthenticated users.
+    let output = ctx.execute(&ytdlp).always().args(["-U"]).output()?;
     let output = match output {
-        ExecutorOutput::Wet(output) => output,
+        ExecutorOutput::Wet(o) => o,
         ExecutorOutput::Dry => return Ok(()),
     };
 
@@ -2544,43 +2612,36 @@ pub fn run_ytdlp(ctx: &ExecutionContext) -> Result<()> {
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
+    let combined_lower = combined.to_lowercase();
 
-    // If managed by a package manager, skip the self-update
-    let pkg_manager_keywords = ["pip", "brew", "pacman", "apt", "choco", "scoop", "winget", "nix"];
-    if pkg_manager_keywords
-        .iter()
-        .any(|kw| combined.to_lowercase().contains(kw))
-    {
+    // If managed by a package manager, skip
+    let pkg_keywords = ["pip", "brew", "pacman", "apt", "choco", "scoop", "winget", "nix"];
+    if pkg_keywords.iter().any(|kw| combined_lower.contains(kw)) {
         return Err(SkipStep("yt-dlp is managed by a package manager; skipping self-update".to_string()).into());
     }
 
-    print_separator("yt-dlp");
-
-    // If the non-sudo attempt succeeded, report it
     if output.status.success() {
         std::io::stdout().lock().write_all(&output.stdout).unwrap();
         std::io::stderr().lock().write_all(&output.stderr).unwrap();
         return Ok(());
     }
 
-    let combined_lower = combined.to_lowercase();
-
-    // If it hit a GitHub API rate limit, skip gracefully instead of failing
+    // Rate limit — skip gracefully
     if combined_lower.contains("rate limit") {
         std::io::stderr().lock().write_all(&output.stderr).unwrap();
-        return Err(
-            SkipStep("yt-dlp update skipped: GitHub API rate limit exceeded, try again later".to_string()).into(),
-        );
+        return Err(SkipStep(
+            "yt-dlp update skipped: GitHub API rate limit exceeded (install `gh` CLI for authenticated updates)"
+                .to_string(),
+        )
+        .into());
     }
 
-    // Check if it failed due to a permission error (e.g., installed to /usr/local/bin)
+    // Permission error — retry with sudo
     if combined_lower.contains("unable to write") || combined_lower.contains("permission denied") {
-        // Retry with sudo
         let sudo = ctx.require_sudo()?;
         return sudo.execute(ctx, &ytdlp)?.args(["-U"]).status_checked();
     }
 
-    // Some other error
     std::io::stdout().lock().write_all(&output.stdout).unwrap();
     std::io::stderr().lock().write_all(&output.stderr).unwrap();
     Err(eyre!("yt-dlp self-update failed"))
