@@ -26,6 +26,28 @@ This is an **enhanced fork** of [topgrade-rs/topgrade](https://github.com/topgra
 
 ## Latest Updates
 
+### 2026-03-08
+- **gh-tool-updater**: Registry-driven GitHub release updater — replaces per-tool topgrade custom commands with a single script that auto-discovers, registers, and updates tools from GitHub releases. Supports binary, tarball, and DMG install types. ([`1216bdb`](https://github.com/barkleesanders/topgrade/commit/1216bdb))
+- **yt-dlp rate limit bypass**: Use `gh` CLI for authenticated GitHub API calls during yt-dlp version checks, avoiding 60 req/hr unauthenticated rate limit ([`5f1efa3`](https://github.com/barkleesanders/topgrade/commit/5f1efa3), [`08a3d80`](https://github.com/barkleesanders/topgrade/commit/08a3d80))
+- **Coverage audit**: Added `topgrade-audit.sh` post-command that reports which tools topgrade covers vs uncovered ([`73afda3`](https://github.com/barkleesanders/topgrade/commit/73afda3))
+- **Bug fixes**: Handle Ollama server not running, yt-dlp permission errors, clippy `disallowed_methods` warning ([`8015db3`](https://github.com/barkleesanders/topgrade/commit/8015db3), [`e95c7bb`](https://github.com/barkleesanders/topgrade/commit/e95c7bb))
+
+### 2026-03-07
+- **4K logo & showcase GIF**: Upgraded repo branding with cinematic logo render and inline feature showcase animation ([`c829b7f`](https://github.com/barkleesanders/topgrade/commit/c829b7f), [`74ee02e`](https://github.com/barkleesanders/topgrade/commit/74ee02e))
+- **`--log-file` option**: Persistent log output to file for debugging long runs ([`6bb1293`](https://github.com/barkleesanders/topgrade/commit/6bb1293))
+- **Separator color & config aliases**: Customize separator colors, added config key aliases for discoverability ([`e80d5a9`](https://github.com/barkleesanders/topgrade/commit/e80d5a9))
+- **CLI/UX improvements**: Better step output formatting and config options ([`8eb3375`](https://github.com/barkleesanders/topgrade/commit/8eb3375))
+- **New package manager steps**: Batch addition of new steps (Ollama, ldcup, Soar, Colima, etc.) ([`31aaca3`](https://github.com/barkleesanders/topgrade/commit/31aaca3))
+- **Deprecated config key safety**: Restored deprecated keys as ignored fields to prevent crashes for existing users ([`074aa77`](https://github.com/barkleesanders/topgrade/commit/074aa77))
+- **Full i18n coverage**: Complete translations for all new strings across 7 languages ([`1bb4b9f`](https://github.com/barkleesanders/topgrade/commit/1bb4b9f), [`166ce51`](https://github.com/barkleesanders/topgrade/commit/166ce51))
+- **Cross-platform CI fixes**: Fixed MSRV Windows imports, clippy collapsible_if, and compilation errors across Linux/FreeBSD/NetBSD/Android ([`bf18cd6`](https://github.com/barkleesanders/topgrade/commit/bf18cd6), [`1e1ce71`](https://github.com/barkleesanders/topgrade/commit/1e1ce71), [`6ccb646`](https://github.com/barkleesanders/topgrade/commit/6ccb646))
+- **Quick-win bug fixes**: Multiple issue fixes in a single batch ([`8c87634`](https://github.com/barkleesanders/topgrade/commit/8c87634))
+
+---
+
+<details>
+<summary><strong>Fork Highlights</strong> (full feature list from initial fork)</summary>
+
 ### New Package Manager Steps
 - **Ollama** - Update Ollama AI model server
 - **ldcup** - LDC2 D compiler version manager
@@ -88,6 +110,8 @@ This is an **enhanced fork** of [topgrade-rs/topgrade](https://github.com/topgra
 - **cargo-deny** license and advisory checks
 - **Zizmor** GitHub Actions security analysis
 - **Scorecard** supply-chain security
+
+</details>
 
 ## Installation
 
