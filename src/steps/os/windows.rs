@@ -290,6 +290,19 @@ pub fn microsoft_store(ctx: &ExecutionContext) -> Result<()> {
     Ok(())
 }
 
+pub fn run_msys2(ctx: &ExecutionContext) -> Result<()> {
+    let msys2_pacman = Path::new(r"C:\msys64\usr\bin\pacman.exe");
+    if !msys2_pacman.exists() {
+        return Err(SkipStep(t!("MSYS2").to_string()).into());
+    }
+
+    print_separator(t!("MSYS2"));
+
+    let mut command = ctx.execute(msys2_pacman);
+    command.args(["-Syu", "--noconfirm"]);
+    command.status_checked()
+}
+
 pub fn reboot(ctx: &ExecutionContext) -> Result<()> {
     // If this works, it won't return, but if it doesn't work, it may return a useful error
     // message.

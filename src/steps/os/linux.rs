@@ -51,6 +51,7 @@ pub enum Distribution {
     KDELinux,
     KDENeon,
     Nobara,
+    OpenWrt,
 }
 
 impl Distribution {
@@ -82,6 +83,7 @@ impl Distribution {
             Some("kde-linux") => Distribution::KDELinux,
             Some("neon") => Distribution::KDENeon,
             Some("openmandriva") => Distribution::OpenMandriva,
+            Some("openwrt") => Distribution::OpenWrt,
             Some("pclinuxos") => Distribution::PCLinuxOS,
             Some(id) if id.starts_with("origami") => Distribution::FedoraImmutable,
 
@@ -171,6 +173,7 @@ impl Distribution {
             Distribution::PCLinuxOS => upgrade_pclinuxos(ctx),
             Distribution::Nobara => upgrade_nobara(ctx),
             Distribution::NILRT => upgrade_nilrt(ctx),
+            Distribution::OpenWrt => upgrade_openwrt(ctx),
             Distribution::AOSC => upgrade_aosc(ctx),
         }
     }
@@ -322,6 +325,13 @@ fn upgrade_nilrt(ctx: &ExecutionContext) -> Result<()> {
 
     sudo.execute(ctx, &opkg)?.arg("update").status_checked()?;
     sudo.execute(ctx, &opkg)?.arg("upgrade").status_checked()
+}
+
+fn upgrade_openwrt(ctx: &ExecutionContext) -> Result<()> {
+    let opkg = require("opkg")?;
+
+    ctx.execute(&opkg).arg("update").status_checked()?;
+    ctx.execute(&opkg).arg("upgrade").status_checked()
 }
 
 fn upgrade_fedora_immutable(ctx: &ExecutionContext) -> Result<()> {

@@ -185,11 +185,15 @@ pub enum Step {
     Mas,
     Maza,
     Micro,
+    Micromamba,
+    MicrosoftAutoUpdate,
     MicrosoftStore,
     Miktex,
     Mise,
+    Msys2,
     Myrepos,
     Nix,
+    NixFlake,
     Node,
     Ollama,
     Opam,
@@ -543,6 +547,12 @@ impl Step {
                 runner.execute(*self, "maza", || unix::run_maza(ctx))?
             }
             Micro => runner.execute(*self, "micro", || generic::run_micro(ctx))?,
+            Micromamba => runner.execute(*self, "micromamba", || generic::run_micromamba(ctx))?,
+            MicrosoftAutoUpdate =>
+            {
+                #[cfg(target_os = "macos")]
+                runner.execute(*self, "Microsoft AutoUpdate", || macos::run_msupdate(ctx))?
+            }
             MicrosoftStore =>
             {
                 #[cfg(windows)]
@@ -554,12 +564,22 @@ impl Step {
                 #[cfg(unix)]
                 runner.execute(*self, "mise", || unix::run_mise(ctx))?
             }
+            Msys2 =>
+            {
+                #[cfg(windows)]
+                runner.execute(*self, "MSYS2", || windows::run_msys2(ctx))?
+            }
             Myrepos => runner.execute(*self, "myrepos", || generic::run_myrepos_update(ctx))?,
             Nix => {
                 #[cfg(unix)]
                 runner.execute(*self, "nix", || unix::run_nix(ctx))?;
                 #[cfg(unix)]
                 runner.execute(*self, "nix upgrade-nix", || unix::run_nix_self_upgrade(ctx))?
+            }
+            NixFlake =>
+            {
+                #[cfg(unix)]
+                runner.execute(*self, "nix flake update", || unix::run_nix_flake_update(ctx))?
             }
             Node => runner.execute(*self, "npm", || node::run_npm_upgrade(ctx))?,
             Ollama => runner.execute(*self, "Ollama", || generic::run_ollama_pull(ctx))?,
@@ -857,10 +877,29 @@ pub(crate) fn default_steps() -> Vec<Step> {
     steps.push(Remotes);
 
     #[cfg(windows)]
-    steps.extend_from_slice(&[Wsl, WslUpdate, Chocolatey, Scoop, Winget, System, MicrosoftStore, Sdio]);
+    steps.extend_from_slice(&[
+        Wsl,
+        WslUpdate,
+        Chocolatey,
+        Scoop,
+        Winget,
+        System,
+        MicrosoftStore,
+        Msys2,
+        Sdio,
+    ]);
 
     #[cfg(target_os = "macos")]
-    steps.extend_from_slice(&[BrewFormula, BrewCask, Macports, Xcodes, Sparkle, Mas, System]);
+    steps.extend_from_slice(&[
+        BrewFormula,
+        BrewCask,
+        Macports,
+        Xcodes,
+        Sparkle,
+        Mas,
+        MicrosoftAutoUpdate,
+        System,
+    ]);
 
     #[cfg(target_os = "dragonfly")]
     steps.extend_from_slice(&[Pkg, Audit]);
@@ -910,6 +949,7 @@ pub(crate) fn default_steps() -> Vec<Step> {
     steps.extend_from_slice(&[
         Yadm,
         Nix,
+        NixFlake,
         Guix,
         HomeManager,
         Asdf,
@@ -963,6 +1003,7 @@ pub(crate) fn default_steps() -> Vec<Step> {
         VscodiumInsiders,
         Conda,
         Mamba,
+        Micromamba,
         Pixi,
         Miktex,
         Pip3,

@@ -75,6 +75,22 @@ fn system_update_available(ctx: &ExecutionContext) -> Result<bool> {
     Ok(!output.stderr.contains("No new software available"))
 }
 
+pub fn run_msupdate(ctx: &ExecutionContext) -> Result<()> {
+    use crate::error::SkipStep;
+    use std::path::Path;
+
+    // Microsoft AutoUpdate (MAU) uses the msupdate CLI tool
+    let msupdate_path =
+        "/Library/Application Support/Microsoft/MAU2.0/Microsoft AutoUpdate.app/Contents/MacOS/msupdate";
+    if !Path::new(msupdate_path).exists() {
+        return Err(SkipStep(t!("msupdate not found").to_string()).into());
+    }
+
+    print_separator(t!("Microsoft AutoUpdate"));
+
+    ctx.execute(msupdate_path).args(["--install"]).status_checked()
+}
+
 pub fn run_sparkle(ctx: &ExecutionContext) -> Result<()> {
     let sparkle = require("sparkle")?;
 

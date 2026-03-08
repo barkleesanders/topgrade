@@ -369,6 +369,9 @@ pub struct Linux {
     home_manager_arguments: Option<Vec<String>>,
 
     #[merge(strategy = crate::utils::merge_strategies::vec_prepend_opt)]
+    nix_flake_dirs: Option<Vec<String>>,
+
+    #[merge(strategy = crate::utils::merge_strategies::vec_prepend_opt)]
     excluded_plasmoids: Option<Vec<String>>,
 
     #[merge(strategy = crate::utils::merge_strategies::vec_prepend_opt)]
@@ -1774,6 +1777,15 @@ impl Config {
             .linux
             .as_ref()
             .and_then(|linux| linux.nix_env_arguments.as_deref())
+    }
+
+    /// Nix flake directories to update
+    pub fn nix_flake_dirs(&self) -> Vec<String> {
+        self.config_file
+            .linux
+            .as_ref()
+            .and_then(|linux| linux.nix_flake_dirs.clone())
+            .unwrap_or_default()
     }
 
     /// Extra Home Manager arguments

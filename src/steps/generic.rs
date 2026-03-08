@@ -868,6 +868,21 @@ pub fn run_mamba_update(ctx: &ExecutionContext) -> Result<()> {
     Ok(())
 }
 
+pub fn run_micromamba(ctx: &ExecutionContext) -> Result<()> {
+    let micromamba = require("micromamba")?;
+
+    print_separator(t!("Micromamba"));
+
+    ctx.execute(&micromamba).arg("self-update").status_checked()?;
+
+    let mut command = ctx.execute(&micromamba);
+    command.args(["update", "--all"]);
+    if ctx.config().yes(Step::Micromamba) {
+        command.arg("--yes");
+    }
+    command.status_checked()
+}
+
 pub fn run_miktex_packages_update(ctx: &ExecutionContext) -> Result<()> {
     let miktex = require("miktex")?;
     print_separator("miktex");

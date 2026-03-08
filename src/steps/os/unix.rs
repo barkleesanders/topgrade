@@ -733,6 +733,36 @@ pub fn run_nix_self_upgrade(ctx: &ExecutionContext) -> Result<()> {
     }
 }
 
+pub fn run_nix_flake_update(ctx: &ExecutionContext) -> Result<()> {
+    let nix = require("nix")?;
+
+    // Check for configurable flake directories, or default to common locations
+    let flake_dirs = ctx.config().nix_flake_dirs();
+
+    if flake_dirs.is_empty() {
+        return Err(SkipStep("No Nix flake directories configured".to_string()).into());
+    }
+
+    print_separator("nix flake update");
+
+    for dir in &flake_dirs {
+        let expanded = shellexpand::tilde(dir);
+        let path = Path::new(expanded.as_ref());
+        if path.join("flake.nix").exists() {
+            debug!("Updating Nix flake in {}", path.display());
+            ctx.execute(&nix)
+                .args(["flake", "update"])
+                .arg("--flake")
+                .arg(path)
+                .status_checked()?;
+        } else {
+            debug!("No flake.nix found in {}, skipping", path.display());
+        }
+    }
+
+    Ok(())
+}
+
 /// If we try to `nix upgrade-nix` but Nix is installed with `nix profile`, we'll get a `does not
 /// appear to be part of a Nix profile` error.
 ///
