@@ -116,6 +116,7 @@ fn run() -> Result<()> {
     set_title(config.set_title());
     display_time(config.display_time());
     set_desktop_notifications(config.notify_each_step());
+    set_show_step_ids(config.show_step_ids());
 
     debug!("Version: {}", crate_version!());
     debug!("OS: {}", env!("TARGET"));

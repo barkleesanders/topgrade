@@ -42,6 +42,8 @@ struct Terminal {
     set_title: bool,
     display_time: bool,
     desktop_notification: bool,
+    show_step_ids: bool,
+    current_step_id: Option<String>,
 }
 
 impl Terminal {
@@ -54,7 +56,17 @@ impl Terminal {
             set_title: true,
             display_time: true,
             desktop_notification: false,
+            show_step_ids: false,
+            current_step_id: None,
         }
+    }
+
+    fn set_show_step_ids(&mut self, show: bool) {
+        self.show_step_ids = show;
+    }
+
+    fn set_current_step_id(&mut self, step_id: Option<String>) {
+        self.current_step_id = step_id;
     }
 
     fn set_desktop_notifications(&mut self, desktop_notifications: bool) {
@@ -93,6 +105,17 @@ impl Terminal {
             self.notify_desktop(message.as_ref(), Some(Duration::from_secs(5)));
         }
 
+        // Append the step ID (e.g., "[brew_cask]") when --show-step-ids is enabled
+        let display_message = if self.show_step_ids {
+            if let Some(ref step_id) = self.current_step_id {
+                format!("{} [{}]", message.as_ref(), step_id)
+            } else {
+                String::from(message.as_ref())
+            }
+        } else {
+            String::from(message.as_ref())
+        };
+
         let now = Local::now();
         let message = if self.display_time {
             format!(
@@ -101,10 +124,10 @@ impl Terminal {
                 now.hour(),
                 now.minute(),
                 now.second(),
-                message.as_ref()
+                display_message
             )
         } else {
-            String::from(message.as_ref())
+            display_message
         };
 
         match self.width {
@@ -335,4 +358,12 @@ pub fn notify_desktop<P: AsRef<str>>(message: P, timeout: Option<Duration>) {
 
 pub fn display_time(display_time: bool) {
     TERMINAL.lock().unwrap().display_time(display_time);
+}
+
+pub fn set_show_step_ids(show: bool) {
+    TERMINAL.lock().unwrap().set_show_step_ids(show);
+}
+
+pub fn set_current_step_id(step_id: Option<String>) {
+    TERMINAL.lock().unwrap().set_current_step_id(step_id);
 }

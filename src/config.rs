@@ -928,6 +928,10 @@ pub struct CommandLineArgs {
     #[arg(long, hide = true)]
     pub gen_manpage: bool,
 
+    /// Show step IDs in the separator (useful for --only/--skip)
+    #[arg(long = "show-step-ids")]
+    show_step_ids: bool,
+
 }
 
 fn env_args_parser(arg: &str) -> Result<(String, String)> {
@@ -1788,6 +1792,10 @@ impl Config {
                 .as_ref()
                 .and_then(|misc| misc.show_skipped)
                 .unwrap_or(false)
+    }
+
+    pub fn show_step_ids(&self) -> bool {
+        self.opt.show_step_ids
     }
 
     pub fn enable_mandb(&self) -> bool {

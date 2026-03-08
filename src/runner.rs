@@ -9,7 +9,7 @@ use crate::ctrlc;
 use crate::error::{DryRun, MissingSudo, SkipStep};
 use crate::execution_context::ExecutionContext;
 use crate::step::Step;
-use crate::terminal::{ShouldRetry, print_error, print_warning, should_retry};
+use crate::terminal::{ShouldRetry, print_error, print_warning, set_current_step_id, should_retry};
 
 pub enum StepResult {
     Success(Option<UpdatedComponents>),
@@ -156,6 +156,9 @@ impl<'a> Runner<'a> {
 
         let key: Cow<'a, str> = key.into();
         debug!("Step {:?}", key);
+
+        // Set the current step ID so print_separator can display it when --show-step-ids is enabled
+        set_current_step_id(Some(step.to_string()));
 
         // Alter the `func` to put it in a span
         let func = || {
