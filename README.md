@@ -1,6 +1,6 @@
 <div align="center">
   <h1>
-    <img alt="Topgrade" src="https://github.com/topgrade-rs/topgrade/blob/main/doc/topgrade_transparent.png?raw=true" width="850px">
+    <img alt="Topgrade" src="https://github.com/barkleesanders/topgrade/blob/main/doc/topgrade_transparent.png?raw=true" width="850px">
   </h1>
 
 <a href="https://github.com/barkleesanders/topgrade/actions"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/barkleesanders/topgrade/ci.yml?branch=main&label=CI"></a>
