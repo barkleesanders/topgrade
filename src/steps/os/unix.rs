@@ -594,27 +594,62 @@ pub fn run_nix(ctx: &ExecutionContext) -> Result<()> {
         Ok(())
     };
 
+    // Check if nom (nix-output-monitor) should be used to wrap nix commands (#719)
+    let nix_handler = ctx.config().nix_handler();
+    let use_nom = match nix_handler {
+        NixHandler::Nom => {
+            require("nom").map_err(|_| {
+                SkipStep(t!("nom (nix-output-monitor) is configured but not installed").to_string())
+            })?;
+            true
+        }
+        NixHandler::Autodetect => require("nom").is_ok(),
+        _ => false,
+    };
+
     if Path::new(&manifest_json_path).exists() {
         // nix-channel doesn't have to succeed when upgrading nix profiles, just warn about it
         if let Err(e) = nix_channel_result {
             warn!("`nix-channel --update` failed: {e}");
         }
         print_separator("Nix Profiles");
-        ctx.execute(nix)
-            .args(nix_args())
-            .arg("profile")
-            .arg("upgrade")
-            .args(&packages)
-            .arg("--verbose")
-            .status_checked()
+
+        if use_nom {
+            let nom = require("nom")?;
+            let mut command = ctx.execute(nom);
+            command
+                .arg("--")
+                .arg(&nix)
+                .args(nix_args())
+                .args(["profile", "upgrade"])
+                .args(&packages)
+                .arg("--verbose");
+            command.status_checked()
+        } else {
+            ctx.execute(nix)
+                .args(nix_args())
+                .arg("profile")
+                .arg("upgrade")
+                .args(&packages)
+                .arg("--verbose")
+                .status_checked()
+        }
     } else {
         // a successful nix-channel run is expected to perform nix-env upgrades
         nix_channel_result?;
         let nix_env = require("nix-env")?;
         print_separator("Nix");
 
-        let mut command = ctx.execute(nix_env);
-        command.arg("--upgrade");
+        let mut command = if use_nom {
+            let nom = require("nom")?;
+            let mut cmd = ctx.execute(nom);
+            cmd.arg("--").arg(nix_env).arg("--upgrade");
+            cmd
+        } else {
+            let mut cmd = ctx.execute(nix_env);
+            cmd.arg("--upgrade");
+            cmd
+        };
         if let Some(args) = ctx.config().nix_env_arguments() {
             command.args(args.split_whitespace());
         };
@@ -923,7 +958,7 @@ pub fn run_home_manager(ctx: &ExecutionContext) -> Result<()> {
         // nh is not available but we need it
         (_, NixHandler::Nh, Err(e)) => Err(e),
         // home-manager is not available but we need it
-        (Err(_), NixHandler::Vanilla, _) => Err(SkipStep(
+        (Err(_), NixHandler::Vanilla | NixHandler::Nom, _) => Err(SkipStep(
             t!(
                 "linux.nix_handler = \"{value}\", but {resulting_tool} is not available",
                 value = "vanilla",
@@ -934,12 +969,32 @@ pub fn run_home_manager(ctx: &ExecutionContext) -> Result<()> {
         .into()),
         // nh is not available and we don't need it, so we fall back
         (Ok(home_manager), NixHandler::Autodetect, Err(_))
-        // We need home-manager
-        | (Ok(home_manager), NixHandler::Vanilla, _) => {
+        // We need home-manager or nom
+        | (Ok(home_manager), NixHandler::Vanilla | NixHandler::Nom, _) => {
             print_separator("home-manager");
 
-            let mut cmd = ctx.execute(home_manager);
-            cmd.arg("switch");
+            // Use nom as a wrapper if configured or available
+            let use_nom = match nix_handler {
+                NixHandler::Nom => true,
+                NixHandler::Autodetect => require("nom").is_ok(),
+                _ => false,
+            };
+
+            let mut cmd = if use_nom {
+                if let Ok(nom) = require("nom") {
+                    let mut c = ctx.execute(nom);
+                    c.arg("--").arg(home_manager).arg("switch");
+                    c
+                } else {
+                    let mut c = ctx.execute(home_manager);
+                    c.arg("switch");
+                    c
+                }
+            } else {
+                let mut c = ctx.execute(home_manager);
+                c.arg("switch");
+                c
+            };
 
             if let Some(extra_args) = ctx.config().home_manager() {
                 cmd.args(extra_args);

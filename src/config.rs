@@ -252,6 +252,7 @@ pub enum NixHandler {
     #[default]
     Autodetect,
     Nh,
+    Nom,
     Vanilla,
 }
 
