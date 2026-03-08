@@ -307,15 +307,34 @@ pub fn run_pnpm_upgrade(ctx: &ExecutionContext) -> Result<()> {
 
     print_separator(t!("Performant Node Package Manager"));
 
+    // Run pnpm from the home directory to avoid corepack/packageManager
+    // conflicts when CWD is a project that uses a different package manager
+    // (e.g. a Yarn project with "packageManager" in package.json).
+    let use_sudo;
     #[cfg(target_os = "linux")]
     {
-        pnpm.upgrade(ctx, should_use_sudo(&pnpm, ctx)?)
+        use_sudo = should_use_sudo(&pnpm, ctx)?;
     }
-
     #[cfg(not(target_os = "linux"))]
     {
-        pnpm.upgrade(ctx, false)
+        use_sudo = false;
     }
+
+    let args = ["update", pnpm.global_location_arg(ctx)];
+    if use_sudo {
+        let sudo = ctx.require_sudo()?;
+        sudo.execute(ctx, &pnpm.command)?
+            .args(args)
+            .current_dir(&*HOME_DIR)
+            .status_checked()?;
+    } else {
+        ctx.execute(&pnpm.command)
+            .args(args)
+            .current_dir(&*HOME_DIR)
+            .status_checked()?;
+    }
+
+    Ok(())
 }
 
 pub fn run_yarn_upgrade(ctx: &ExecutionContext) -> Result<()> {

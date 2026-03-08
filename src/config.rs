@@ -45,6 +45,30 @@ macro_rules! str_value {
 
 pub type Commands = IndexMap<String, String>;
 
+/// Represents the `assume_yes` config key which can be either a boolean
+/// (apply to all steps) or an array of step names (apply only to those steps).
+#[derive(Deserialize, Debug, Clone)]
+#[serde(untagged)]
+pub enum AssumeYes {
+    /// Apply --yes to all steps
+    Bool(bool),
+    /// Apply --yes only to the listed steps
+    Steps(Vec<Step>),
+}
+
+impl Default for AssumeYes {
+    fn default() -> Self {
+        AssumeYes::Bool(false)
+    }
+}
+
+/// Merge strategy: left takes precedence (first config wins)
+fn merge_assume_yes(left: &mut Option<AssumeYes>, right: Option<AssumeYes>) {
+    if left.is_none() {
+        *left = right;
+    }
+}
+
 #[derive(Deserialize, Default, Debug, Merge)]
 #[serde(deny_unknown_fields)]
 pub struct Include {
@@ -363,7 +387,8 @@ pub struct Misc {
 
     display_time: Option<bool>,
 
-    assume_yes: Option<bool>,
+    #[merge(strategy = merge_assume_yes)]
+    assume_yes: Option<AssumeYes>,
 
     ask_retry: Option<bool>,
 
@@ -1304,8 +1329,11 @@ impl Config {
 
     /// Whether to say yes to package managers
     pub fn yes(&self, step: Step) -> bool {
-        if let Some(yes) = self.config_file.misc.as_ref().and_then(|misc| misc.assume_yes) {
-            return yes;
+        if let Some(assume_yes) = self.config_file.misc.as_ref().and_then(|misc| misc.assume_yes.as_ref()) {
+            return match assume_yes {
+                AssumeYes::Bool(yes) => *yes,
+                AssumeYes::Steps(steps) => steps.contains(&step),
+            };
         }
 
         if let Some(yes_list) = &self.opt.yes {

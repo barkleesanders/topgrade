@@ -51,6 +51,9 @@
 
 # Don't ask for confirmations (no default value)
 # assume_yes = true
+#
+# Or only auto-yes for specific steps:
+# assume_yes = ["emacs", "pip3"]
 
 # Whether to ask what to do after a step fails (default: true)
 # ask_retry = true
