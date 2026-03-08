@@ -17,7 +17,7 @@ use crate::steps::os::archlinux;
 use crate::steps::os::archlinux::get_arch_package_manager;
 use crate::steps::unix::{NhSwitchArgs, can_nh_switch, nh_switch};
 use crate::sudo::SudoExecuteOpts;
-use crate::terminal::{print_separator, prompt_yesno};
+use crate::terminal::{print_info, print_separator, prompt_yesno};
 use crate::utils::{PathExt, require, require_flatpak, require_one, which};
 
 static OS_RELEASE_PATH: &str = "/etc/os-release";
@@ -980,7 +980,15 @@ pub fn run_fwupdmgr(ctx: &ExecutionContext) -> Result<()> {
     } else {
         updmgr.arg("get-updates");
     }
-    updmgr.status_checked_with_codes(&[2])
+    let result = updmgr.status_checked_with_codes(&[2]);
+
+    if result.is_ok() && ctx.config().firmware_upgrade() {
+        print_info(t!(
+            "Some firmware updates may require a reboot to take effect. Run `fwupdmgr get-updates` for details."
+        ));
+    }
+
+    result
 }
 
 pub fn run_flatpak(ctx: &ExecutionContext) -> Result<()> {
