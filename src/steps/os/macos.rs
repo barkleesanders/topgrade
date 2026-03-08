@@ -84,7 +84,7 @@ pub fn run_sparkle(ctx: &ExecutionContext) -> Result<()> {
         let probe = ctx
             .execute(&sparkle)
             .always()
-            .args(["--probe", "--application"])
+            .args(["probe", "--application"])
             .arg(application.path())
             .output_checked_utf8();
         if probe.is_ok() {
