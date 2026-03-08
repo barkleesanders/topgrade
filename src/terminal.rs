@@ -171,7 +171,13 @@ impl Terminal {
                 "{}: {}\n",
                 key,
                 match result {
-                    StepResult::Success => format!("{}", style(t!("OK")).bold().green()),
+                    StepResult::Success(updated) => {
+                        let mut s = format!("{}", style(t!("OK")).bold().green());
+                        if let Some(updated) = updated {
+                            s.push_str(&format!(": {updated}"));
+                        }
+                        s
+                    }
                     StepResult::Failure => format!("{}", style(t!("FAILED")).bold().red()),
                     StepResult::Ignored => format!("{}", style(t!("IGNORED")).bold().yellow()),
                     StepResult::SkippedMissingSudo => format!(

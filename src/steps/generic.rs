@@ -1827,6 +1827,35 @@ pub fn run_ldcup(ctx: &ExecutionContext) -> Result<()> {
     Ok(())
 }
 
+
+pub fn run_ollama_pull(ctx: &ExecutionContext) -> Result<()> {
+    let ollama = require("ollama")?;
+
+    print_separator("Ollama");
+
+    // We use `ctx.execute(...).always()` so that we can still collect the model
+    // list even in dry run.
+    let ollama_list_output = ctx.execute(&ollama).always().arg("list").output_checked_utf8()?;
+    let ollama_list_stdout = ollama_list_output.stdout;
+    // trim the last new-line character, or `stdout.split('\n')` would give us an empty string
+    let ollama_list_stdout_trimmed = ollama_list_stdout.trim_end_matches('\n');
+    // skip(1) to skip the first `NAME ID SIZE MODIFIED` header line
+    let model_lines = ollama_list_stdout_trimmed.split('\n').skip(1);
+    for model_line in model_lines {
+        let mut columns = model_line.split_whitespace();
+        let model_name = columns
+            .next()
+            .expect("The format of `ollama list` output has changed, file an issue to Topgrade!");
+        assert!(model_name.contains(':'), "a tag should be included in the model name");
+
+        ctx.execute(&ollama)
+            .args(["pull", model_name])
+            .status_checked()?;
+    }
+
+    Ok(())
+}
+
 pub fn run_jetbrains_toolbox(ctx: &ExecutionContext) -> Result<()> {
     let installation = find_jetbrains_toolbox();
     match installation {

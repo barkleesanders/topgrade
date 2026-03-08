@@ -671,7 +671,7 @@ impl Step {
                 #[cfg(target_os = "linux")]
                 runner.execute(*self, "toolbx", || toolbx::run_toolbx(ctx))?
             }
-            Uv => runner.execute(*self, "uv", || generic::run_uv(ctx))?,
+            Uv => runner.execute_with_updated(*self, "uv", || generic::run_uv(ctx))?,
             Vagrant => {
                 if ctx.config().should_run(Vagrant)
                     && let Ok(boxes) = vagrant::collect_boxes(ctx)
@@ -735,7 +735,7 @@ impl Step {
                 runner.execute(*self, "yadm", || unix::run_yadm(ctx))?
             }
             Yarn => runner.execute(*self, "yarn", || node::run_yarn_upgrade(ctx))?,
-            Yazi => runner.execute_2(*self, "Yazi packages", generic::run_yazi)?,
+            Yazi => runner.execute(*self, "Yazi packages", || generic::run_yazi(ctx))?,
             Zigup => runner.execute(*self, "zigup", || generic::run_zigup(ctx))?,
             Zvm => runner.execute(*self, "ZVM", || generic::run_zvm(ctx))?,
         }
