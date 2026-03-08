@@ -179,17 +179,35 @@ impl Executor {
     /// that can indicate success of a script
     #[allow(dead_code)]
     pub fn status_checked_with_codes(&mut self, codes: &[i32]) -> Result<()> {
+        self.status_checked_with_codes_returning(codes).map(|_| {})
+    }
+
+    /// An extension of `status_checked_with_codes` that returns the status code
+    pub fn status_checked_with_codes_returning(&mut self, codes: &[i32]) -> Result<ExitStatus> {
         self.log_command();
         match self {
-            Executor::Wet(c) | Executor::Damp(c) => c.status_checked_with(|status| {
+            Executor::Wet(c) | Executor::Damp(c) => c.status_checked_with_returning(|status| {
                 if status.success() || status.code().as_ref().is_some_and(|c| codes.contains(c)) {
                     Ok(())
                 } else {
                     Err(())
                 }
             }),
-            Executor::Dry(_) => Ok(()),
+            Executor::Dry(_) => Ok(ExitStatus::default()),
         }
+    }
+
+    #[allow(dead_code)]
+    /// Set stdin, stdout, stderr to `Stdio::null()`
+    pub fn null_stdio(&mut self) -> &mut Self {
+        match self {
+            Executor::Wet(c) | Executor::Damp(c) => {
+                c.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+            }
+            Executor::Dry(_) => {}
+        }
+
+        self
     }
 
     fn log_command(&self) {
@@ -286,10 +304,17 @@ impl CommandExt for Executor {
     }
 
     fn status_checked_with(&mut self, succeeded: impl Fn(ExitStatus) -> Result<(), ()>) -> Result<()> {
+        self.status_checked_with_returning(succeeded).map(|_| {})
+    }
+
+    fn status_checked_with_returning(
+        &mut self,
+        succeeded: impl Fn(ExitStatus) -> std::result::Result<(), ()>,
+    ) -> Result<ExitStatus> {
         self.log_command();
         match self {
-            Executor::Wet(c) | Executor::Damp(c) => c.status_checked_with(succeeded),
-            Executor::Dry(_) => Ok(()),
+            Executor::Wet(c) | Executor::Damp(c) => c.status_checked_with_returning(succeeded),
+            Executor::Dry(_) => Ok(ExitStatus::default()),
         }
     }
 

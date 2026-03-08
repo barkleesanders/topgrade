@@ -149,6 +149,13 @@ pub trait CommandExt {
     #[track_caller]
     fn status_checked_with(&mut self, succeeded: impl Fn(ExitStatus) -> Result<(), ()>) -> eyre::Result<()>;
 
+    /// Like [`status_checked_with`], but still returns the [`ExitStatus`].
+    #[track_caller]
+    fn status_checked_with_returning(
+        &mut self,
+        succeeded: impl Fn(ExitStatus) -> Result<(), ()>,
+    ) -> eyre::Result<ExitStatus>;
+
     /// Like [`Command::spawn`], but gives a nice error message if the command fails to
     /// execute.
     #[track_caller]
@@ -195,6 +202,13 @@ impl CommandExt for Command {
     }
 
     fn status_checked_with(&mut self, succeeded: impl Fn(ExitStatus) -> Result<(), ()>) -> eyre::Result<()> {
+        self.status_checked_with_returning(succeeded).map(|_| {})
+    }
+
+    fn status_checked_with_returning(
+        &mut self,
+        succeeded: impl Fn(ExitStatus) -> Result<(), ()>,
+    ) -> eyre::Result<ExitStatus> {
         let command = log(self);
         let message = format!("Failed to execute `{command}`");
 
@@ -204,7 +218,7 @@ impl CommandExt for Command {
         let status = self.status().with_context(|| message.clone())?;
 
         if succeeded(status).is_ok() {
-            Ok(())
+            Ok(status)
         } else {
             let (program, _) = get_program_and_args(self);
             let err = TopgradeError::ProcessFailed(program, status);

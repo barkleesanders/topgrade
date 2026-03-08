@@ -14,6 +14,7 @@ use crate::execution_context::ExecutionContext;
 use crate::step::Step;
 use crate::steps::generic::is_wsl;
 use crate::steps::os::archlinux;
+use crate::steps::os::archlinux::get_arch_package_manager;
 use crate::steps::unix::{NhSwitchArgs, can_nh_switch, nh_switch};
 use crate::sudo::SudoExecuteOpts;
 use crate::terminal::{print_separator, prompt_yesno};
@@ -885,7 +886,9 @@ fn upgrade_kde_linux(ctx: &ExecutionContext) -> Result<()> {
 /// 1. This is a redhat-based distribution
 /// 2. This is a debian-based distribution and it is using `nala` as the `apt`
 ///    alternative
-fn should_skip_needrestart() -> Result<()> {
+/// 3. This is an arch-based distribution and `needrestart` is installed by pacman (pacman hooks
+///    call `needrestart` for us)
+fn should_skip_needrestart(ctx: &ExecutionContext) -> Result<()> {
     let distribution = Distribution::detect()?;
     let msg = t!("needrestart will be ran by the package manager");
 
@@ -893,11 +896,21 @@ fn should_skip_needrestart() -> Result<()> {
         return Err(SkipStep(String::from(msg)).into());
     }
 
-    if matches!(distribution, Distribution::Debian) {
-        let (apt_kind, _) = detect_apt()?;
-        if matches!(apt_kind, AptKind::Nala) {
-            return Err(SkipStep(String::from(msg)).into());
+    match distribution {
+        Distribution::Debian => {
+            let (apt_kind, _) = detect_apt()?;
+            if matches!(apt_kind, AptKind::Nala) {
+                return Err(SkipStep(String::from(msg)).into());
+            }
         }
+        Distribution::Arch => {
+            if let Some(manager) = get_arch_package_manager(ctx) {
+                if manager.package_installed("needrestart", ctx)? {
+                    return Err(SkipStep(String::from(msg)).into());
+                }
+            }
+        }
+        _ => {}
     }
 
     Ok(())
@@ -906,7 +919,7 @@ fn should_skip_needrestart() -> Result<()> {
 pub fn run_needrestart(ctx: &ExecutionContext) -> Result<()> {
     let needrestart = require("needrestart")?;
 
-    should_skip_needrestart()?;
+    should_skip_needrestart(ctx)?;
 
     print_separator(t!("Check for needed restarts"));
 
