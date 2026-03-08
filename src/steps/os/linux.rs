@@ -357,14 +357,14 @@ fn check_zypper_needs_reboot(ctx: &ExecutionContext) {
     if let Some(zypper) = which("zypper") {
         #[allow(clippy::disallowed_methods)]
         let status = std::process::Command::new(&zypper).arg("needs-rebooting").status();
-        if let Ok(s) = status {
-            if s.success() {
-                println!("{}", t!("System needs a reboot after updates."));
-                if let Ok(true) = prompt_yesno(&t!("Reboot now?")) {
-                    if let Err(e) = super::unix::reboot(ctx) {
-                        warn!("Failed to reboot: {e}");
-                    }
-                }
+        if let Ok(s) = status
+            && s.success()
+        {
+            println!("{}", t!("System needs a reboot after updates."));
+            if let Ok(true) = prompt_yesno(&t!("Reboot now?"))
+                && let Err(e) = super::unix::reboot(ctx)
+            {
+                warn!("Failed to reboot: {e}");
             }
         }
     }
@@ -931,10 +931,10 @@ fn should_skip_needrestart(ctx: &ExecutionContext) -> Result<()> {
             }
         }
         Distribution::Arch => {
-            if let Some(manager) = get_arch_package_manager(ctx) {
-                if manager.package_installed("needrestart", ctx)? {
-                    return Err(SkipStep(String::from(msg)).into());
-                }
+            if let Some(manager) = get_arch_package_manager(ctx)
+                && manager.package_installed("needrestart", ctx)?
+            {
+                return Err(SkipStep(String::from(msg)).into());
             }
         }
         _ => {}

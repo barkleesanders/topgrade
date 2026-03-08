@@ -9,6 +9,8 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+#[cfg(windows)]
+use etcetera::base_strategy::BaseStrategy;
 use tracing::debug;
 
 use crate::config::StepFrequency;
