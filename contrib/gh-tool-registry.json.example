@@ -1,0 +1,83 @@
+{
+  "_comment": "Registry of GitHub-released tools managed by gh-tool-updater.sh. Edit freely.",
+  "_format": {
+    "repo": "owner/name on GitHub",
+    "binary_name": "name of the binary/command (used for version check)",
+    "install_path": "absolute path where the binary lives",
+    "asset_pattern": "glob pattern to match the release asset for darwin-arm64",
+    "version_command": "command to extract installed version string (run via eval)",
+    "version_extract": "optional: sed/awk to extract version number from version_command output",
+    "tag_prefix": "optional: prefix before version in GitHub tags (default: 'v')",
+    "tag_filter": "optional: grep pattern to filter release list (for monorepos with multiple release tags)",
+    "archive_binary_path": "optional: path to binary inside the tarball (if not top-level)",
+    "post_install": "optional: commands to run after install (e.g., codesign, xattr)",
+    "type": "binary | tarball | dmg-app",
+    "notes": "optional: human notes"
+  },
+  "tools": [
+    {
+      "repo": "vercel-labs/agent-browser",
+      "binary_name": "agent-browser",
+      "install_path": "/Users/barkleesanders/.factory/tools/agent-browser/bin/agent-browser",
+      "asset_pattern": "agent-browser-darwin-arm64",
+      "version_command": "agent-browser --version 2>/dev/null",
+      "version_extract": "awk '{print $2}'",
+      "type": "binary",
+      "notes": "Raw binary, no archive. Wrapper at ~/.factory/bin/agent-browser"
+    },
+    {
+      "repo": "steveyegge/beads",
+      "binary_name": "bd",
+      "install_path": "/usr/local/bin/bd",
+      "asset_pattern": "beads_*_darwin_arm64.tar.gz",
+      "version_command": "bd --version 2>/dev/null",
+      "version_extract": "awk '{print $3}'",
+      "archive_binary_path": "bd",
+      "type": "tarball"
+    },
+    {
+      "repo": "AlexsJones/llmfit",
+      "binary_name": "llmfit",
+      "install_path": "/usr/local/bin/llmfit",
+      "asset_pattern": "llmfit-*-aarch64-apple-darwin.tar.gz",
+      "version_command": "llmfit --version 2>/dev/null",
+      "version_extract": "awk '{print $2}'",
+      "archive_binary_path": "llmfit",
+      "type": "tarball"
+    },
+    {
+      "repo": "trycua/lume",
+      "binary_name": "lume",
+      "install_path": "/Users/barkleesanders/.local/bin/lume",
+      "asset_pattern": "lume-*-darwin-arm64.tar.gz",
+      "version_command": "lume --version 2>/dev/null",
+      "version_extract": "cat",
+      "tag_prefix": "lume-v",
+      "tag_filter": "^lume-v",
+      "type": "tarball",
+      "archive_binary_path": "lume",
+      "notes": "Monorepo — filter releases by lume-v prefix. Installs as wrapper script."
+    },
+    {
+      "repo": "yt-dlp/yt-dlp",
+      "binary_name": "yt-dlp",
+      "install_path": "/usr/local/bin/yt-dlp",
+      "asset_pattern": "yt-dlp_macos",
+      "version_command": "/usr/local/bin/yt-dlp --version 2>/dev/null",
+      "version_extract": "cat",
+      "tag_prefix": "",
+      "type": "binary",
+      "notes": "No 'v' prefix on tags. Raw binary download."
+    },
+    {
+      "repo": "pear-devs/pear-desktop",
+      "binary_name": "YouTube Music",
+      "install_path": "/Applications/YouTube Music.app",
+      "asset_pattern": "YouTube-Music-*-arm64.dmg",
+      "version_command": "plutil -p '/Applications/YouTube Music.app/Contents/Info.plist' 2>/dev/null | grep CFBundleShortVersionString | awk -F' => ' '{print $2}' | tr -d '\"'",
+      "version_extract": "cat",
+      "type": "dmg-app",
+      "notes": "macOS .app installed from DMG. Requires mount/copy/unmount."
+    }
+  ]
+}
