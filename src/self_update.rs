@@ -28,7 +28,8 @@ pub fn self_update(ctx: &ExecutionContext) -> Result<()> {
 
         let target = self_update_crate::get_target();
         let current_version = self_update_crate::cargo_crate_version!();
-        let result = Update::configure()
+        let mut update_builder = Update::configure();
+        update_builder
             .repo_owner("topgrade-rs")
             .repo_name("topgrade")
             .target(target)
@@ -36,9 +37,14 @@ pub fn self_update(ctx: &ExecutionContext) -> Result<()> {
             .show_output(true)
             .show_download_progress(true)
             .current_version(current_version)
-            .no_confirm(assume_yes)
-            .build()?
-            .update_extended()?;
+            .no_confirm(assume_yes);
+
+        // Use GitHub token if available to avoid rate limiting (#1474)
+        if let Some(token) = ctx.config().github_token() {
+            update_builder.auth_token(&token);
+        }
+
+        let result = update_builder.build()?.update_extended()?;
 
         if let UpdateStatus::Updated(release) = &result {
             println!(

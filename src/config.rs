@@ -397,6 +397,8 @@ pub struct Misc {
     show_distribution_summary: Option<bool>,
 
     nix_handler: Option<NixHandler>,
+
+    github_token: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, ValueEnum, Default)]
@@ -1796,6 +1798,16 @@ impl Config {
 
     pub fn show_step_ids(&self) -> bool {
         self.opt.show_step_ids
+    }
+
+    /// Get the GitHub token for self-update, checking config file and environment variables.
+    pub fn github_token(&self) -> Option<String> {
+        self.config_file
+            .misc
+            .as_ref()
+            .and_then(|misc| misc.github_token.clone())
+            .or_else(|| std::env::var("TOPGRADE_GITHUB_TOKEN").ok())
+            .or_else(|| std::env::var("GITHUB_TOKEN").ok())
     }
 
     pub fn enable_mandb(&self) -> bool {
