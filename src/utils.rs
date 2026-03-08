@@ -337,6 +337,54 @@ pub fn run_with_shell(command: &str, ctx: &ExecutionContext) -> Result<()> {
     exec.arg("-c").arg(command).status_checked()
 }
 
+/// Compute Levenshtein edit distance between two strings.
+pub fn levenshtein_distance(a: &str, b: &str) -> usize {
+    let a_len = a.len();
+    let b_len = b.len();
+
+    if a_len == 0 {
+        return b_len;
+    }
+    if b_len == 0 {
+        return a_len;
+    }
+
+    let mut prev_row: Vec<usize> = (0..=b_len).collect();
+    let mut curr_row = vec![0; b_len + 1];
+
+    for (i, a_ch) in a.chars().enumerate() {
+        curr_row[0] = i + 1;
+        for (j, b_ch) in b.chars().enumerate() {
+            let cost = if a_ch == b_ch { 0 } else { 1 };
+            curr_row[j + 1] = (prev_row[j + 1] + 1)
+                .min(curr_row[j] + 1)
+                .min(prev_row[j] + cost);
+        }
+        std::mem::swap(&mut prev_row, &mut curr_row);
+    }
+
+    prev_row[b_len]
+}
+
+/// Given an unknown step name, suggest the closest matching step name(s).
+/// Returns `None` if no close match is found (distance > 3).
+pub fn suggest_step(unknown: &str, known: &[&str]) -> Option<String> {
+    let unknown_lower = unknown.to_lowercase();
+    let mut best: Vec<(&str, usize)> = known
+        .iter()
+        .map(|&name| (name, levenshtein_distance(&unknown_lower, &name.to_lowercase())))
+        .filter(|(_, dist)| *dist <= 3)
+        .collect();
+    best.sort_by_key(|(_, dist)| *dist);
+
+    if best.is_empty() {
+        None
+    } else {
+        let suggestions: Vec<&str> = best.iter().take(3).map(|(name, _)| *name).collect();
+        Some(suggestions.join(", "))
+    }
+}
+
 /// Macro to construct an error message for when the output of a command is unexpected.
 #[macro_export]
 macro_rules! output_changed_message {

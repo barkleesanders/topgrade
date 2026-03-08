@@ -1,5 +1,6 @@
 use crate::execution_context::ExecutionContext;
 use crate::runner::Runner;
+use crate::utils::suggest_step;
 use clap::ValueEnum;
 use color_eyre::Result;
 #[cfg(target_os = "linux")]
@@ -15,6 +16,19 @@ use crate::steps::*;
 use crate::utils::hostname;
 
 pub const DEPRECATED_STEPS: [Step; 0] = [];
+
+/// Parse a step name from a string, with fuzzy matching suggestions on failure.
+pub fn parse_step(s: &str) -> std::result::Result<Step, String> {
+    // Try standard ValueEnum parsing first
+    <Step as ValueEnum>::from_str(s, true).map_err(|_| {
+        let known = Step::VARIANTS;
+        let mut msg = format!("unknown step: '{s}'");
+        if let Some(suggestions) = suggest_step(s, known) {
+            msg.push_str(&format!(". Did you mean: {suggestions}?"));
+        }
+        msg
+    })
+}
 
 #[derive(ValueEnum, EnumString, VariantNames, Debug, Clone, PartialEq, Eq, Hash, Deserialize, EnumIter, Copy, EnumCount, strum::Display)]
 #[clap(rename_all = "snake_case")]

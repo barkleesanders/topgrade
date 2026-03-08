@@ -955,11 +955,11 @@ pub struct CommandLineArgs {
     auto_retry: Option<u16>,
 
     /// Do not perform upgrades for the given steps
-    #[arg(long = "disable", value_name = "STEP", value_enum, num_args = 1..)]
+    #[arg(long = "disable", value_name = "STEP", value_parser = crate::step::parse_step, num_args = 1..)]
     disable: Vec<Step>,
 
     /// Perform only the specified steps
-    #[arg(long = "only", value_name = "STEP", value_enum, num_args = 1..)]
+    #[arg(long = "only", value_name = "STEP", value_parser = crate::step::parse_step, num_args = 1..)]
     only: Vec<Step>,
 
     /// Run only specific custom commands
