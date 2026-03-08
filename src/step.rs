@@ -185,6 +185,7 @@ pub enum Step {
     Yadm,
     Yarn,
     Yazi,
+    YtDlp,
     Zigup,
     Zvm,
 }
@@ -743,6 +744,7 @@ impl Step {
             }
             Yarn => runner.execute(*self, "yarn", || node::run_yarn_upgrade(ctx))?,
             Yazi => runner.execute(*self, "Yazi packages", || generic::run_yazi(ctx))?,
+            YtDlp => runner.execute(*self, "yt-dlp", || generic::run_ytdlp(ctx))?,
             Zigup => runner.execute(*self, "zigup", || generic::run_zigup(ctx))?,
             Zvm => runner.execute(*self, "ZVM", || generic::run_zvm(ctx))?,
         }
@@ -951,6 +953,7 @@ pub(crate) fn default_steps() -> Vec<Step> {
         // JetBrains Space Desktop does not have a CLI
         JetbrainsWebstorm,
         Yazi,
+        YtDlp,
         Falconf,
         Powershell,
         CustomCommands,

@@ -2384,3 +2384,49 @@ pub fn run_falconf(ctx: &ExecutionContext) -> Result<()> {
 
     ctx.execute(falconf).arg("sync").status_checked()
 }
+
+pub fn run_ytdlp(ctx: &ExecutionContext) -> Result<()> {
+    let ytdlp = require("yt-dlp")?;
+
+    // Check if yt-dlp was installed via a package manager by inspecting the
+    // output of `yt-dlp -U`. If it mentions pip, brew, or another package
+    // manager, skip since the package manager handles updates.
+    let output = ctx
+        .execute(&ytdlp)
+        .always()
+        .args(["-U"])
+        .output()?;
+
+    let output = match output {
+        ExecutorOutput::Wet(output) => output,
+        ExecutorOutput::Dry => return Ok(()),
+    };
+
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    // If managed by a package manager, skip the self-update
+    let pkg_manager_keywords = ["pip", "brew", "pacman", "apt", "choco", "scoop", "winget", "nix"];
+    if pkg_manager_keywords.iter().any(|kw| combined.to_lowercase().contains(kw)) {
+        return Err(SkipStep(
+            "yt-dlp is managed by a package manager; skipping self-update".to_string(),
+        )
+        .into());
+    }
+
+    print_separator("yt-dlp");
+
+    // The -U command was already run above; report its result
+    if output.status.success() {
+        std::io::stdout().lock().write_all(&output.stdout).unwrap();
+        std::io::stderr().lock().write_all(&output.stderr).unwrap();
+        Ok(())
+    } else {
+        std::io::stdout().lock().write_all(&output.stdout).unwrap();
+        std::io::stderr().lock().write_all(&output.stderr).unwrap();
+        Err(eyre!("yt-dlp self-update failed"))
+    }
+}
