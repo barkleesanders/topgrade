@@ -505,7 +505,48 @@ pub struct Rustup {
 #[serde(deny_unknown_fields)]
 pub struct Pkgfile {
     enable: Option<bool>,
+}
 
+/// How often a step should run.
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum StepFrequency {
+    /// Run every time topgrade runs (default).
+    Always,
+    /// Run at most once per day.
+    Daily,
+    /// Run at most once per week.
+    Weekly,
+    /// Run at most once per month.
+    Monthly,
+}
+
+impl StepFrequency {
+    /// Return the minimum number of seconds between runs.
+    pub fn interval_secs(&self) -> Option<u64> {
+        match self {
+            StepFrequency::Always => None,
+            StepFrequency::Daily => Some(86_400),
+            StepFrequency::Weekly => Some(604_800),
+            StepFrequency::Monthly => Some(2_592_000),
+        }
+    }
+}
+
+/// Per-step frequency configuration.
+///
+/// ```toml
+/// [frequency]
+/// brew_formula = "daily"
+/// system = "weekly"
+/// firmware = "monthly"
+/// ```
+#[derive(Deserialize, Default, Debug, Merge)]
+#[serde(deny_unknown_fields)]
+pub struct Frequency {
+    #[serde(flatten)]
+    #[merge(skip)]
+    steps: Option<std::collections::HashMap<Step, StepFrequency>>,
 }
 
 #[derive(Deserialize, Default, Debug, Merge)]
@@ -619,6 +660,9 @@ pub struct ConfigFile {
 
     #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
     uv_python: Option<UvPythonConfig>,
+
+    #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
+    frequency: Option<Frequency>,
 }
 
 fn config_directory() -> PathBuf {
@@ -2177,6 +2221,16 @@ impl Config {
             .as_ref()
             .and_then(|uv_python| uv_python.post_commands.as_deref())
 
+    }
+
+    /// Get the configured frequency for a step.
+    pub fn step_frequency(&self, step: Step) -> StepFrequency {
+        self.config_file
+            .frequency
+            .as_ref()
+            .and_then(|f| f.steps.as_ref())
+            .and_then(|steps| steps.get(&step).copied())
+            .unwrap_or(StepFrequency::Always)
     }
 }
 

@@ -37,6 +37,7 @@ mod ctrlc;
 mod error;
 mod execution_context;
 mod executor;
+mod frequency;
 mod runner;
 #[cfg(windows)]
 mod self_renamer;

@@ -154,6 +154,12 @@ impl<'a> Runner<'a> {
             return Ok(());
         }
 
+        // Check per-step frequency: skip if not enough time has passed
+        let frequency = self.ctx.config().step_frequency(step);
+        if !crate::frequency::should_run_by_frequency(step, frequency) {
+            return Ok(());
+        }
+
         let key: Cow<'a, str> = key.into();
         debug!("Step {:?}", key);
 
@@ -176,6 +182,8 @@ impl<'a> Runner<'a> {
         loop {
             match func() {
                 Ok(updated) => {
+                    // Record successful run for frequency tracking
+                    crate::frequency::record_step_run(step);
                     self.push_result(key, StepResult::Success(updated.map(UpdatedComponents::new)));
                     break;
                 }

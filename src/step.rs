@@ -16,7 +16,7 @@ use crate::utils::hostname;
 
 pub const DEPRECATED_STEPS: [Step; 1] = [Step::NixHelper];
 
-#[derive(ValueEnum, EnumString, VariantNames, Debug, Clone, PartialEq, Eq, Deserialize, EnumIter, Copy, EnumCount, strum::Display)]
+#[derive(ValueEnum, EnumString, VariantNames, Debug, Clone, PartialEq, Eq, Hash, Deserialize, EnumIter, Copy, EnumCount, strum::Display)]
 #[clap(rename_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
