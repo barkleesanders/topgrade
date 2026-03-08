@@ -5,10 +5,8 @@ use color_eyre::eyre::Context;
 use color_eyre::eyre::Result;
 use color_eyre::eyre::eyre;
 
-use crate::command::CommandExt;
 use crate::utils::which;
 
-use rust_i18n::t;
 #[cfg(unix)]
 use std::os::unix::process::CommandExt as _;
 

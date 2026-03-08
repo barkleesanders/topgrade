@@ -130,7 +130,10 @@ fn run() -> Result<()> {
     if config.run_in_tmux() && env::var("TOPGRADE_INSIDE_TMUX").is_err() {
         #[cfg(unix)]
         {
-            tmux::run_in_tmux(config.tmux_config()?)?;
+            match config.multiplexer() {
+                config::Multiplexer::Tmux => tmux::run_in_tmux(config.tmux_config()?)?,
+                config::Multiplexer::Zellij => zellij::run_in_zellij()?,
+            }
             return Ok(());
         }
     }
