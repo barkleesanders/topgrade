@@ -1,12 +1,25 @@
 use color_eyre::eyre::Result;
 
 use crate::command::CommandExt;
+use crate::error::SkipStep;
 use crate::step::Step;
 use crate::terminal::print_separator;
 use crate::{execution_context::ExecutionContext, utils::require};
 use std::path::Path;
 use std::path::PathBuf;
 use tracing::debug;
+
+/// Check if the installed `toolbox` binary is Fedora's toolbx (supports `list --containers`)
+/// as opposed to openSUSE's toolbox (different CLI, not supported).
+fn is_fedora_toolbx(ctx: &ExecutionContext, toolbx: &Path) -> bool {
+    // Fedora's toolbx supports `list --containers`; openSUSE's toolbox does not.
+    // Try running the command and check if it succeeds.
+    ctx.execute(toolbx)
+        .always()
+        .args(["list", "--containers"])
+        .output_checked_utf8()
+        .is_ok()
+}
 
 fn list_toolboxes(ctx: &ExecutionContext, toolbx: &Path) -> Result<Vec<String>> {
     let output = ctx
@@ -32,6 +45,10 @@ fn list_toolboxes(ctx: &ExecutionContext, toolbx: &Path) -> Result<Vec<String>> 
 
 pub fn run_toolbx(ctx: &ExecutionContext) -> Result<()> {
     let toolbx = require("toolbox")?;
+
+    if !is_fedora_toolbx(ctx, &toolbx) {
+        return Err(SkipStep("openSUSE toolbox detected (not Fedora toolbx); skipping".to_string()).into());
+    }
 
     print_separator("Toolbx");
     let toolboxes = list_toolboxes(ctx, &toolbx)?;
