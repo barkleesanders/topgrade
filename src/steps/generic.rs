@@ -1181,7 +1181,7 @@ pub fn run_powershell(ctx: &ExecutionContext) -> Result<()> {
 
     println!("{}", t!("Updating modules..."));
 
-    if powershell.is_pwsh() {
+    let result = if powershell.is_pwsh() {
         // For PowerShell Core, run Update-Module without sudo since it defaults to CurrentUser scope
         // and Update-Module updates all modules regardless of their original installation scope
         powershell.build_command(ctx, &cmd, false)?.status_checked()
@@ -1189,7 +1189,28 @@ pub fn run_powershell(ctx: &ExecutionContext) -> Result<()> {
         // For (Windows) PowerShell, use sudo since it defaults to AllUsers scope
         // and may need administrator privileges
         powershell.build_command(ctx, &cmd, true)?.status_checked()
+    };
+
+    // When --cleanup is specified, remove old versions of installed modules
+    if ctx.config().cleanup() {
+        println!("{}", t!("Cleaning up old module versions..."));
+        let cleanup_cmd = "Get-InstalledModule | ForEach-Object { \
+            Get-InstalledModule $_.Name -AllVersions | \
+            Sort-Object Version -Descending | \
+            Select-Object -Skip 1 | \
+            Uninstall-Module -Force -ErrorAction SilentlyContinue \
+        }";
+        let cleanup_result = if powershell.is_pwsh() {
+            powershell.build_command(ctx, cleanup_cmd, false)?.status_checked()
+        } else {
+            powershell.build_command(ctx, cleanup_cmd, true)?.status_checked()
+        };
+        if let Err(e) = cleanup_result {
+            debug!("PowerShell module cleanup failed (non-fatal): {:?}", e);
+        }
     }
+
+    result
 }
 
 enum Hx {

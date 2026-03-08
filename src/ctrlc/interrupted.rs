@@ -1,3 +1,4 @@
+use std::process;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 /// A global variable telling whether the application has been interrupted.
@@ -15,5 +16,9 @@ pub fn unset_interrupted() {
 }
 
 pub fn set_interrupted() {
-    INTERRUPTED.store(true, Ordering::SeqCst);
+    // If already interrupted (second Ctrl+C), exit immediately
+    if INTERRUPTED.swap(true, Ordering::SeqCst) {
+        // Exit with 130 (128 + SIGINT signal number 2)
+        process::exit(130);
+    }
 }
