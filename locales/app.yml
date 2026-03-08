@@ -112,6 +112,8 @@ _version: 2
   zh_CN: "已将 Topgrade 从 %{from_version} 更新至 %{to_version}: \n"
   zh_TW: "已將 Topgrade 從 %{from_version} 更新至 %{to_version}：\n"
   de: "Topgrade von Version %{from_version} auf %{to_version} aktualisiert:\n"
+"Topgrade":
+  en: "Topgrade"
 "Topgrade is up-to-date":
   en: "Topgrade is up-to-date"
   lt: "Topgrade yra naujausia"
