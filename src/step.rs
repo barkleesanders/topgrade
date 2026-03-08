@@ -117,6 +117,7 @@ pub enum Step {
     Nix,
     NixHelper,
     Node,
+    Ollama,
     Opam,
     Pacdef,
     Pacstall,
@@ -470,6 +471,7 @@ impl Step {
             }
             NixHelper => {}
             Node => runner.execute(*self, "npm", || node::run_npm_upgrade(ctx))?,
+            Ollama => runner.execute(*self, "Ollama", || generic::run_ollama_pull(ctx))?,
             Opam => runner.execute(*self, "opam", || generic::run_opam_update(ctx))?,
             Pacdef =>
             {
@@ -902,6 +904,7 @@ pub(crate) fn default_steps() -> Vec<Step> {
         Spicetify,
         GithubCliExtensions,
         Bob,
+        Ollama,
         Certbot,
         GitRepos,
         ClamAvDb,
