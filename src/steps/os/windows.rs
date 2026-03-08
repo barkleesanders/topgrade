@@ -309,6 +309,10 @@ pub fn reboot(ctx: &ExecutionContext) -> Result<()> {
     ctx.execute("shutdown.exe").args(["/R", "/T", "0"]).status_checked()
 }
 
+pub fn poweroff(ctx: &ExecutionContext) -> Result<()> {
+    ctx.execute("shutdown.exe").args(["/S", "/T", "0"]).status_checked()
+}
+
 pub fn insert_startup_scripts(ctx: &ExecutionContext, git_repos: &mut RepoStep) -> Result<()> {
     let startup_dir = crate::WINDOWS_DIRS
         .data_dir()

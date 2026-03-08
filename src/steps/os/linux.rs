@@ -127,7 +127,58 @@ impl Distribution {
         }
     }
 
+    /// Parse a distribution name from a string (case-insensitive).
+    /// Accepts the same names used in the os-release ID field.
+    fn from_name(name: &str) -> Option<Self> {
+        match name.to_lowercase().as_str() {
+            "alpine" => Some(Distribution::Alpine),
+            "aosc" => Some(Distribution::AOSC),
+            "arch" | "archlinux" => Some(Distribution::Arch),
+            "bedrock" => Some(Distribution::Bedrock),
+            "centos" | "rhel" => Some(Distribution::CentOS),
+            "chimera" => Some(Distribution::Chimera),
+            "clearlinux" | "clear-linux-os" => Some(Distribution::ClearLinux),
+            "debian" => Some(Distribution::Debian),
+            "exherbo" => Some(Distribution::Exherbo),
+            "fedora" => Some(Distribution::Fedora),
+            "fedora-immutable" => Some(Distribution::FedoraImmutable),
+            "gentoo" => Some(Distribution::Gentoo),
+            "kdelinux" | "kde-linux" => Some(Distribution::KDELinux),
+            "kdeneon" | "neon" => Some(Distribution::KDENeon),
+            "nilrt" => Some(Distribution::NILRT),
+            "nixos" => Some(Distribution::NixOS),
+            "nobara" => Some(Distribution::Nobara),
+            "openmandriva" => Some(Distribution::OpenMandriva),
+            "opensuse-tumbleweed" => Some(Distribution::OpenSuseTumbleweed),
+            "openwrt" => Some(Distribution::OpenWrt),
+            "pclinuxos" => Some(Distribution::PCLinuxOS),
+            "solus" => Some(Distribution::Solus),
+            "suse" | "opensuse" => Some(Distribution::Suse),
+            "suse-micro" | "opensuse-microos" => Some(Distribution::SuseMicro),
+            "vanilla" => Some(Distribution::Vanilla),
+            "void" => Some(Distribution::Void),
+            "wolfi" => Some(Distribution::Wolfi),
+            _ => None,
+        }
+    }
+
     pub fn detect() -> Result<Self> {
+        Self::detect_with_override(None)
+    }
+
+    pub fn detect_with_override(distribution_override: Option<&str>) -> Result<Self> {
+        // If a distribution override is configured, use it directly
+        if let Some(name) = distribution_override {
+            if let Some(dist) = Self::from_name(name) {
+                tracing::debug!("Using distribution override: {:?}", dist);
+                return Ok(dist);
+            }
+            tracing::warn!(
+                "Unknown distribution override '{}', falling back to auto-detection",
+                name
+            );
+        }
+
         if PathBuf::from("/bedrock").exists() {
             return Ok(Distribution::Bedrock);
         }

@@ -192,6 +192,7 @@ pub enum Step {
     Mise,
     Msys2,
     Myrepos,
+    NhClean,
     Nix,
     NixFlake,
     Node,
@@ -570,6 +571,11 @@ impl Step {
                 runner.execute(*self, "MSYS2", || windows::run_msys2(ctx))?
             }
             Myrepos => runner.execute(*self, "myrepos", || generic::run_myrepos_update(ctx))?,
+            NhClean =>
+            {
+                #[cfg(unix)]
+                runner.execute(*self, "nh clean", || unix::run_nh_clean(ctx))?
+            }
             Nix => {
                 #[cfg(unix)]
                 runner.execute(*self, "nix", || unix::run_nix(ctx))?;
@@ -950,6 +956,7 @@ pub(crate) fn default_steps() -> Vec<Step> {
         Yadm,
         Nix,
         NixFlake,
+        NhClean,
         Guix,
         HomeManager,
         Asdf,

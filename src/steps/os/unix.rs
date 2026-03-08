@@ -763,6 +763,14 @@ pub fn run_nix_flake_update(ctx: &ExecutionContext) -> Result<()> {
     Ok(())
 }
 
+pub fn run_nh_clean(ctx: &ExecutionContext) -> Result<()> {
+    let nh = require("nh")?;
+
+    print_separator(t!("nh clean"));
+
+    ctx.execute(&nh).args(["clean", "all"]).status_checked()
+}
+
 /// If we try to `nix upgrade-nix` but Nix is installed with `nix profile`, we'll get a `does not
 /// appear to be part of a Nix profile` error.
 ///
@@ -1191,5 +1199,19 @@ pub fn reboot(ctx: &ExecutionContext) -> Result<()> {
     match ctx.sudo() {
         Some(sudo) => sudo.execute(ctx, "reboot")?.status_checked(),
         None => ctx.execute("reboot").status_checked(),
+    }
+}
+
+pub fn poweroff(ctx: &ExecutionContext) -> Result<()> {
+    // Prefer `systemctl poweroff` on systemd-based systems
+    if Path::new("/run/systemd/system").exists() {
+        if let Ok(systemctl) = require("systemctl") {
+            return ctx.execute(systemctl).arg("poweroff").status_checked();
+        }
+    }
+
+    match ctx.sudo() {
+        Some(sudo) => sudo.execute(ctx, "poweroff")?.status_checked(),
+        None => ctx.execute("poweroff").status_checked(),
     }
 }

@@ -368,6 +368,8 @@ pub struct Linux {
     #[merge(strategy = crate::utils::merge_strategies::vec_prepend_opt)]
     home_manager_arguments: Option<Vec<String>>,
 
+    distribution_override: Option<String>,
+
     #[merge(strategy = crate::utils::merge_strategies::vec_prepend_opt)]
     nix_flake_dirs: Option<Vec<String>>,
 
@@ -1069,6 +1071,10 @@ pub struct CommandLineArgs {
     /// Show step IDs in the separator (useful for --only/--skip)
     #[arg(long = "show-step-ids")]
     show_step_ids: bool,
+
+    /// List available steps and exit
+    #[arg(long = "list-steps")]
+    list_steps: bool,
 }
 
 fn env_args_parser(arg: &str) -> Result<(String, String)> {
@@ -1779,6 +1785,14 @@ impl Config {
             .and_then(|linux| linux.nix_env_arguments.as_deref())
     }
 
+    /// Distribution override for Linux (useful for derivatives)
+    pub fn distribution_override(&self) -> Option<&str> {
+        self.config_file
+            .linux
+            .as_ref()
+            .and_then(|linux| linux.distribution_override.as_deref())
+    }
+
     /// Nix flake directories to update
     pub fn nix_flake_dirs(&self) -> Vec<String> {
         self.config_file
@@ -1974,6 +1988,10 @@ impl Config {
 
     pub fn show_step_ids(&self) -> bool {
         self.opt.show_step_ids
+    }
+
+    pub fn list_steps(&self) -> bool {
+        self.opt.list_steps
     }
 
     /// Get the GitHub token for self-update, checking config file and environment variables.

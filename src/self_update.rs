@@ -26,7 +26,9 @@ pub fn self_update(ctx: &ExecutionContext) -> Result<()> {
         let assume_yes = ctx.config().yes(Step::SelfUpdate);
         let current_exe = env::current_exe();
 
-        let target = self_update_crate::get_target();
+        // Use compile-time target triple from build.rs to correctly handle
+        // cross-compiled binaries (e.g., musl targets)
+        let target = env!("TARGET");
         let current_version = self_update_crate::cargo_crate_version!();
         let mut update_builder = Update::configure();
         update_builder

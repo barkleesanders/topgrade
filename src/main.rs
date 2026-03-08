@@ -114,6 +114,16 @@ fn run() -> Result<()> {
     }
 
     let config = Config::load(opt)?;
+
+    if config.list_steps() {
+        use strum::IntoEnumIterator;
+        println!("{}", t!("Available steps:"));
+        for step in step::Step::iter() {
+            println!("  {step}");
+        }
+        return Ok(());
+    }
+
     // Update the logger with the full filter directives.
     update_tracing(&reload_handle, &config.tracing_filter_directives())?;
     set_title(config.set_title());
@@ -164,7 +174,7 @@ fn run() -> Result<()> {
     };
 
     #[cfg(target_os = "linux")]
-    let distribution = linux::Distribution::detect();
+    let distribution = linux::Distribution::detect_with_override(config.distribution_override());
 
     let run_type = config.run_type();
     let ctx = execution_context::ExecutionContext::new(
@@ -338,7 +348,7 @@ fn run() -> Result<()> {
     let skip_prompt = in_tmux && config.tmux_auto_exit();
 
     if config.keep_at_end() && !skip_prompt {
-        print_info(t!("\n(R)eboot\n(S)hell\n(Q)uit"));
+        print_info(t!("\n(R)eboot\n(P)oweroff\n(S)hell\n(Q)uit"));
         loop {
             match get_key() {
                 Ok(Key::Char('s' | 'S')) => {
@@ -347,6 +357,10 @@ fn run() -> Result<()> {
                 Ok(Key::Char('r' | 'R')) => {
                     println!("{}", t!("Rebooting..."));
                     reboot(&ctx).context("Failed to reboot")?;
+                }
+                Ok(Key::Char('p' | 'P')) => {
+                    println!("{}", t!("Powering off..."));
+                    poweroff(&ctx).context("Failed to poweroff")?;
                 }
                 Ok(Key::Char('q' | 'Q')) => (),
                 _ => {
