@@ -2502,6 +2502,8 @@ mod test {
             opt: CommandLineArgs::parse_from::<_, String>([]),
             config_file: ConfigFile::default(),
             allowed_steps: Vec::new(),
+            config_hash: None,
+            config_path: None,
         }
     }
 

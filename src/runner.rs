@@ -5,6 +5,7 @@ use std::fmt::{Debug, Display};
 use std::io;
 use tracing::debug;
 
+use crate::command::CommandExt;
 use crate::ctrlc;
 use crate::error::{DryRun, MissingSudo, SkipStep};
 use crate::execution_context::ExecutionContext;
@@ -188,16 +189,9 @@ impl<'a> Runner<'a> {
                     // Run post-update trigger command if configured
                     if let Some(trigger) = self.ctx.config().step_trigger(step) {
                         debug!("Running trigger for step {:?}: {}", step, trigger);
-                        match std::process::Command::new("sh").args(["-c", trigger]).status() {
-                            Ok(status) if status.success() => {
+                        match self.ctx.execute("sh").args(["-c", trigger]).status_checked() {
+                            Ok(()) => {
                                 debug!("Trigger for step {:?} completed successfully", step);
-                            }
-                            Ok(status) => {
-                                print_warning(format!(
-                                    "Trigger for {} exited with status {}",
-                                    step,
-                                    status.code().unwrap_or(-1)
-                                ));
                             }
                             Err(e) => {
                                 print_warning(format!("Failed to run trigger for {}: {}", step, e));
