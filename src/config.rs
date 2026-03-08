@@ -406,6 +406,8 @@ pub enum TmuxSessionMode {
     #[default]
     AttachIfNotInSession,
     AttachAlways,
+    ReattachIfNotInSession,
+    ReattachAlways,
 }
 
 /// Controls when the end-of-run desktop notification is sent.
