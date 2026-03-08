@@ -1888,7 +1888,6 @@ impl Config {
             .unwrap_or(true)
     }
 
-    #[cfg(target_os = "linux")]
     pub fn npm_use_sudo(&self) -> bool {
         self.config_file
             .npm
@@ -1896,7 +1895,7 @@ impl Config {
             .and_then(|npm| npm.use_sudo)
             .unwrap_or(false)
     }
-    #[cfg(target_os = "linux")]
+
     pub fn yarn_use_sudo(&self) -> bool {
         self.config_file
             .yarn

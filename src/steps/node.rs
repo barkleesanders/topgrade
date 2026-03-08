@@ -298,7 +298,8 @@ pub fn run_npm_upgrade(ctx: &ExecutionContext) -> Result<()> {
 
     #[cfg(not(target_os = "linux"))]
     {
-        npm.upgrade(ctx, false)
+        // On non-Linux platforms (e.g. Windows with gsudo), respect the use_sudo config flag
+        npm.upgrade(ctx, ctx.config().npm_use_sudo())
     }
 }
 
@@ -317,7 +318,8 @@ pub fn run_pnpm_upgrade(ctx: &ExecutionContext) -> Result<()> {
     }
     #[cfg(not(target_os = "linux"))]
     {
-        use_sudo = false;
+        // On non-Linux platforms (e.g. Windows with gsudo), respect the use_sudo config flag
+        use_sudo = ctx.config().npm_use_sudo();
     }
 
     let args = ["update", pnpm.global_location_arg(ctx)];
@@ -354,7 +356,8 @@ pub fn run_yarn_upgrade(ctx: &ExecutionContext) -> Result<()> {
 
     #[cfg(not(target_os = "linux"))]
     {
-        yarn.upgrade(ctx, false)
+        // On non-Linux platforms (e.g. Windows with gsudo), respect the use_sudo config flag
+        yarn.upgrade(ctx, ctx.config().yarn_use_sudo())
     }
 }
 
