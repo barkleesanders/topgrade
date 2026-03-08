@@ -26,7 +26,7 @@ fn state_file_path() -> PathBuf {
 
     #[cfg(windows)]
     {
-        crate::WINDOWS_DIRS.data_local_dir().join("topgrade/last_run.json")
+        crate::WINDOWS_DIRS.data_dir().join("topgrade/last_run.json")
     }
 }
 

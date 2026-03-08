@@ -354,7 +354,7 @@ fn check_zypper_needs_reboot(ctx: &ExecutionContext) {
         return;
     }
     // `zypper needs-rebooting` exits 0 if reboot needed, 1 if not
-    if let Ok(zypper) = which("zypper") {
+    if let Some(zypper) = which("zypper") {
         #[allow(clippy::disallowed_methods)]
         let status = std::process::Command::new(&zypper).arg("needs-rebooting").status();
         if let Ok(s) = status {
@@ -850,8 +850,8 @@ fn upgrade_nixos(ctx: &ExecutionContext) -> Result<()> {
         (NixHandler::Nh, Err(e)) => return Err(e),
         // nh is not available and we don't need it, so we fall back
         (NixHandler::Autodetect, Err(_))
-        // We need vanilla
-        | (NixHandler::Vanilla, _) => {
+        // We need vanilla (or nom, which falls back to vanilla for NixOS rebuild)
+        | (NixHandler::Vanilla | NixHandler::Nom, _) => {
             let mut command = sudo.execute(ctx, "/run/current-system/sw/bin/nixos-rebuild")?;
             command.args(["switch", "--upgrade"]);
 
@@ -1311,7 +1311,7 @@ pub fn run_hardware_ids_update(ctx: &ExecutionContext) -> Result<()> {
     let mut any_found = false;
 
     for cmd_name in &["update-pciids", "update-usbids", "update-smart-drivedb"] {
-        if let Ok(cmd) = which(cmd_name) {
+        if let Some(cmd) = which(cmd_name) {
             any_found = true;
             let sudo = ctx.require_sudo()?;
             print_separator(format!("Hardware IDs ({cmd_name})"));
