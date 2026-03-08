@@ -37,6 +37,7 @@ mod ctrlc;
 mod error;
 mod execution_context;
 mod executor;
+mod frequency;
 mod runner;
 #[cfg(windows)]
 mod self_renamer;
@@ -203,7 +204,16 @@ fn run() -> Result<()> {
         }
     }
 
-    for step in step::default_steps() {
+    let steps = {
+        let default = step::default_steps();
+        if let Some(rules) = config.step_order_rules() {
+            step::apply_step_order(default, rules)
+        } else {
+            default
+        }
+    };
+
+    for step in steps {
         match step.run(&mut runner, &ctx) {
             Ok(()) => (),
             Err(error)
@@ -216,6 +226,31 @@ fn run() -> Result<()> {
                 break;
             }
             Err(error) => return Err(error),
+        }
+    }
+
+    // Check if the config file was modified during the run.
+    // If so, re-exec topgrade with the same args (similar to self-update respawn).
+    if config.config_changed() {
+        print_info(t!("Configuration file changed during run. Respawning..."));
+        #[allow(clippy::disallowed_methods)]
+        let current_exe = env::current_exe()?;
+        #[allow(clippy::disallowed_methods)]
+        let mut command = std::process::Command::new(current_exe);
+        command.args(env::args().skip(1));
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::CommandExt as _;
+            let err = command.exec();
+            return Err(err.into());
+        }
+
+        #[cfg(windows)]
+        {
+            #[allow(clippy::disallowed_methods)]
+            let status = command.status()?;
+            exit(status.code().unwrap_or(2));
         }
     }
 
@@ -236,6 +271,9 @@ fn run() -> Result<()> {
             }
             print_result(key, result);
         }
+
+        // Print a summary of all updated components
+        print_updated_components_summary(report);
 
         if skipped_missing_sudo {
             print_warning(t!(
@@ -286,7 +324,11 @@ fn run() -> Result<()> {
         }
     }
 
-    if config.keep_at_end() {
+    // Skip the R/S/Q prompt when tmux_auto_exit is set and we're running in tmux
+    let in_tmux = env::var("TMUX").is_ok();
+    let skip_prompt = in_tmux && config.tmux_auto_exit();
+
+    if config.keep_at_end() && !skip_prompt {
         print_info(t!("\n(R)eboot\n(S)hell\n(Q)uit"));
         loop {
             match get_key() {

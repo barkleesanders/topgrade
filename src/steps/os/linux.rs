@@ -348,6 +348,30 @@ fn upgrade_bedrock_strata(ctx: &ExecutionContext) -> Result<()> {
     Ok(())
 }
 
+/// After zypper runs, check if a reboot is needed and prompt the user.
+fn check_zypper_needs_reboot(ctx: &ExecutionContext) {
+    if ctx.run_type().dry() {
+        return;
+    }
+    // `zypper needs-rebooting` exits 0 if reboot needed, 1 if not
+    if let Ok(zypper) = which("zypper") {
+        #[allow(clippy::disallowed_methods)]
+        let status = std::process::Command::new(&zypper)
+            .arg("needs-rebooting")
+            .status();
+        if let Ok(s) = status {
+            if s.success() {
+                println!("{}", t!("System needs a reboot after updates."));
+                if let Ok(true) = prompt_yesno(&t!("Reboot now?")) {
+                    if let Err(e) = super::unix::reboot(ctx) {
+                        warn!("Failed to reboot: {e}");
+                    }
+                }
+            }
+        }
+    }
+}
+
 fn upgrade_suse(ctx: &ExecutionContext) -> Result<()> {
     let zypper = require("zypper")?;
     let sudo = ctx.require_sudo()?;
@@ -366,6 +390,8 @@ fn upgrade_suse(ctx: &ExecutionContext) -> Result<()> {
 
     cmd.status_checked()?;
 
+    check_zypper_needs_reboot(ctx);
+
     Ok(())
 }
 
@@ -382,6 +408,8 @@ fn upgrade_opensuse_tumbleweed(ctx: &ExecutionContext) -> Result<()> {
     }
 
     cmd.status_checked()?;
+
+    check_zypper_needs_reboot(ctx);
 
     Ok(())
 }

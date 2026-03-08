@@ -38,7 +38,7 @@ enum RetryDecision {
 
 type Report<'a> = Vec<(Cow<'a, str>, StepResult)>;
 
-pub struct UpdatedComponents(Vec<UpdatedComponent>);
+pub struct UpdatedComponents(pub Vec<UpdatedComponent>);
 
 impl UpdatedComponents {
     pub fn new(updated: Vec<UpdatedComponent>) -> Self {
@@ -154,6 +154,12 @@ impl<'a> Runner<'a> {
             return Ok(());
         }
 
+        // Check per-step frequency: skip if not enough time has passed
+        let frequency = self.ctx.config().step_frequency(step);
+        if !crate::frequency::should_run_by_frequency(step, frequency) {
+            return Ok(());
+        }
+
         let key: Cow<'a, str> = key.into();
         debug!("Step {:?}", key);
 
@@ -176,6 +182,32 @@ impl<'a> Runner<'a> {
         loop {
             match func() {
                 Ok(updated) => {
+                    // Record successful run for frequency tracking
+                    crate::frequency::record_step_run(step);
+
+                    // Run post-update trigger command if configured
+                    if let Some(trigger) = self.ctx.config().step_trigger(step) {
+                        debug!("Running trigger for step {:?}: {}", step, trigger);
+                        match std::process::Command::new("sh")
+                            .args(["-c", trigger])
+                            .status()
+                        {
+                            Ok(status) if status.success() => {
+                                debug!("Trigger for step {:?} completed successfully", step);
+                            }
+                            Ok(status) => {
+                                print_warning(format!(
+                                    "Trigger for {} exited with status {}",
+                                    step,
+                                    status.code().unwrap_or(-1)
+                                ));
+                            }
+                            Err(e) => {
+                                print_warning(format!("Failed to run trigger for {}: {}", step, e));
+                            }
+                        }
+                    }
+
                     self.push_result(key, StepResult::Success(updated.map(UpdatedComponents::new)));
                     break;
                 }

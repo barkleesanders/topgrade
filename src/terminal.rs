@@ -367,3 +367,23 @@ pub fn set_show_step_ids(show: bool) {
 pub fn set_current_step_id(step_id: Option<String>) {
     TERMINAL.lock().unwrap().set_current_step_id(step_id);
 }
+
+/// Print a summary of all updated components collected during the run.
+pub fn print_updated_components_summary(report: &[(impl AsRef<str>, StepResult)]) {
+    let mut any_updates = false;
+
+    for (key, result) in report {
+        if let StepResult::Success(Some(updated)) = result {
+            if !updated.0.is_empty() {
+                if !any_updates {
+                    any_updates = true;
+                    print_separator("Updated Components");
+                }
+                println!("{}:", key.as_ref());
+                for component in &updated.0 {
+                    println!("  - {component}");
+                }
+            }
+        }
+    }
+}

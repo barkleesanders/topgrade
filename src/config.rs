@@ -84,6 +84,7 @@ pub struct Containers {
     runtime: Option<ContainerRuntime>,
     system_prune: Option<bool>,
     use_sudo: Option<bool>,
+    restart: Option<bool>,
 }
 
 #[derive(Deserialize, Default, Debug, Merge)]
@@ -420,6 +421,8 @@ pub struct Misc {
 
     show_distribution_summary: Option<bool>,
 
+    tmux_auto_exit: Option<bool>,
+
     nix_handler: Option<NixHandler>,
 
     github_token: Option<String>,
@@ -537,7 +540,64 @@ pub struct Rustup {
 #[serde(deny_unknown_fields)]
 pub struct Pkgfile {
     enable: Option<bool>,
+}
 
+/// How often a step should run.
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum StepFrequency {
+    /// Run every time topgrade runs (default).
+    Always,
+    /// Run at most once per day.
+    Daily,
+    /// Run at most once per week.
+    Weekly,
+    /// Run at most once per month.
+    Monthly,
+}
+
+impl StepFrequency {
+    /// Return the minimum number of seconds between runs.
+    pub fn interval_secs(&self) -> Option<u64> {
+        match self {
+            StepFrequency::Always => None,
+            StepFrequency::Daily => Some(86_400),
+            StepFrequency::Weekly => Some(604_800),
+            StepFrequency::Monthly => Some(2_592_000),
+        }
+    }
+}
+
+/// Per-step frequency configuration.
+///
+/// ```toml
+/// [frequency]
+/// brew_formula = "daily"
+/// system = "weekly"
+/// firmware = "monthly"
+/// ```
+#[derive(Deserialize, Default, Debug, Merge)]
+#[serde(deny_unknown_fields)]
+pub struct Frequency {
+    #[serde(flatten)]
+    #[merge(skip)]
+    steps: Option<std::collections::HashMap<Step, StepFrequency>>,
+}
+
+/// Custom step ordering configuration.
+///
+/// ```toml
+/// [step_order]
+/// after_system = ["flatpak", "snap"]
+/// ```
+///
+/// This ensures the specified steps run after the named step.
+#[derive(Deserialize, Default, Debug, Merge)]
+#[serde(deny_unknown_fields)]
+pub struct StepOrder {
+    #[serde(flatten)]
+    #[merge(skip)]
+    rules: Option<std::collections::HashMap<String, Vec<Step>>>,
 }
 
 #[derive(Deserialize, Default, Debug, Merge)]
@@ -651,6 +711,15 @@ pub struct ConfigFile {
 
     #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
     uv_python: Option<UvPythonConfig>,
+
+    #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
+    frequency: Option<Frequency>,
+
+    #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
+    step_order: Option<StepOrder>,
+
+    #[merge(strategy = crate::utils::merge_strategies::commands_merge_opt)]
+    triggers: Option<Commands>,
 }
 
 fn config_directory() -> PathBuf {
@@ -1023,6 +1092,10 @@ pub struct Config {
     opt: CommandLineArgs,
     config_file: ConfigFile,
     allowed_steps: Vec<Step>,
+    /// Hash of the config file contents at load time, used to detect changes.
+    config_hash: Option<u64>,
+    /// Path to the main config file.
+    config_path: Option<PathBuf>,
 }
 
 impl Config {
@@ -1045,10 +1118,27 @@ impl Config {
 
         let allowed_steps = Self::allowed_steps(&opt, &config_file);
 
+        // Compute hash of the config file for change detection
+        let config_path = opt.config.clone().or_else(|| {
+            let (path, _) = ConfigFile::ensure().ok()?;
+            if path.exists() { Some(path) } else { None }
+        });
+        let config_hash = config_path
+            .as_ref()
+            .and_then(|p| fs::read(p).ok())
+            .map(|bytes| {
+                use std::hash::{Hash, Hasher};
+                let mut hasher = std::collections::hash_map::DefaultHasher::new();
+                bytes.hash(&mut hasher);
+                hasher.finish()
+            });
+
         Ok(Self {
             opt,
             config_file,
             allowed_steps,
+            config_hash,
+            config_path,
         })
     }
 
@@ -1116,6 +1206,15 @@ impl Config {
             .containers
             .as_ref()
             .and_then(|containers| containers.system_prune)
+            .unwrap_or(false)
+    }
+
+    /// Whether to restart running containers after image pull.
+    pub fn containers_restart(&self) -> bool {
+        self.config_file
+            .containers
+            .as_ref()
+            .and_then(|containers| containers.restart)
             .unwrap_or(false)
     }
 
@@ -2191,6 +2290,61 @@ impl Config {
             .as_ref()
             .and_then(|uv_python| uv_python.post_commands.as_deref())
 
+    }
+
+    /// Whether to auto-exit (skip the R/S/Q prompt) when running in tmux.
+    pub fn tmux_auto_exit(&self) -> bool {
+        self.config_file
+            .misc
+            .as_ref()
+            .and_then(|misc| misc.tmux_auto_exit)
+            .unwrap_or(false)
+    }
+
+    /// Get the trigger command for a step, if configured.
+    ///
+    /// ```toml
+    /// [triggers]
+    /// flatpak = "systemctl restart discord"
+    /// ```
+    pub fn step_trigger(&self, step: Step) -> Option<&str> {
+        let triggers = self.config_file.triggers.as_ref()?;
+        let key = step.to_string();
+        triggers.get(&key).map(|s| s.as_str())
+    }
+
+    /// Get the step ordering rules from the config file.
+    /// Returns a map of "after_{step}" -> list of steps that should follow.
+    pub fn step_order_rules(&self) -> Option<&std::collections::HashMap<String, Vec<Step>>> {
+        self.config_file.step_order.as_ref().and_then(|so| so.rules.as_ref())
+    }
+
+    /// Check if the config file has been modified since it was loaded.
+    pub fn config_changed(&self) -> bool {
+        let Some(ref path) = self.config_path else {
+            return false;
+        };
+        let Some(original_hash) = self.config_hash else {
+            return false;
+        };
+        let Ok(bytes) = fs::read(path) else {
+            return false;
+        };
+        use std::hash::{Hash, Hasher};
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        bytes.hash(&mut hasher);
+        let current_hash = hasher.finish();
+        current_hash != original_hash
+    }
+
+    /// Get the configured frequency for a step.
+    pub fn step_frequency(&self, step: Step) -> StepFrequency {
+        self.config_file
+            .frequency
+            .as_ref()
+            .and_then(|f| f.steps.as_ref())
+            .and_then(|steps| steps.get(&step).copied())
+            .unwrap_or(StepFrequency::Always)
     }
 }
 

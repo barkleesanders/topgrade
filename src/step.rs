@@ -16,7 +16,7 @@ use crate::utils::hostname;
 
 pub const DEPRECATED_STEPS: [Step; 0] = [];
 
-#[derive(ValueEnum, EnumString, VariantNames, Debug, Clone, PartialEq, Eq, Deserialize, EnumIter, Copy, EnumCount, strum::Display)]
+#[derive(ValueEnum, EnumString, VariantNames, Debug, Clone, PartialEq, Eq, Hash, Deserialize, EnumIter, Copy, EnumCount, strum::Display)]
 #[clap(rename_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -193,6 +193,13 @@ pub enum Step {
 impl Step {
     #[allow(clippy::too_many_lines)]
     pub fn run(&self, runner: &mut Runner, ctx: &ExecutionContext) -> Result<()> {
+        // When --only is specified, skip detection for steps not in the list.
+        // This avoids unnecessary work like scanning for git repos, checking
+        // for binaries, etc. for steps that won't run anyway.
+        if !ctx.config().should_run(*self) {
+            return Ok(());
+        }
+
         use Step::*;
 
         match *self {
@@ -961,6 +968,43 @@ pub(crate) fn default_steps() -> Vec<Step> {
     ]);
 
     steps.shrink_to_fit();
+
+    steps
+}
+
+/// Apply custom step ordering rules from the `[step_order]` config section.
+///
+/// Rules are of the form `after_<step> = ["step_a", "step_b"]` which ensures
+/// that step_a and step_b appear immediately after <step> in the execution order.
+pub fn apply_step_order(mut steps: Vec<Step>, rules: &std::collections::HashMap<String, Vec<Step>>) -> Vec<Step> {
+    for (key, followers) in rules {
+        // Parse "after_<step_name>" keys
+        let Some(anchor_name) = key.strip_prefix("after_") else {
+            continue;
+        };
+
+        // Find the anchor step by name
+        let Ok(anchor) = anchor_name.parse::<Step>() else {
+            tracing::debug!("Unknown step in step_order: {anchor_name}");
+            continue;
+        };
+
+        // Remove the follower steps from their current positions
+        let mut removed: Vec<Step> = Vec::new();
+        for follower in followers {
+            if let Some(pos) = steps.iter().position(|s| s == follower) {
+                removed.push(steps.remove(pos));
+            }
+        }
+
+        // Insert them right after the anchor step
+        if let Some(anchor_pos) = steps.iter().position(|s| *s == anchor) {
+            let insert_at = anchor_pos + 1;
+            for (i, step) in removed.into_iter().enumerate() {
+                steps.insert(insert_at + i, step);
+            }
+        }
+    }
 
     steps
 }
