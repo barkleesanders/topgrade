@@ -665,11 +665,11 @@ fn build_sdio_script(work_dir: &Path, options: &SdioScriptOptions, mode: ScriptM
             script.push_str("# Generate selected devices report (what would be changed)\n");
             script.push_str("writedevicelist selected_device_report.txt\n\n");
 
-            if should_download_driverpacks(mode, options) {
-                if let Some(arg) = driverpack_policy_argument(options.driverpack_policy) {
-                    let _ = writeln!(script, "get driverpacks {}", arg);
-                    script.push_str("onerror goto end\n\n");
-                }
+            if should_download_driverpacks(mode, options)
+                && let Some(arg) = driverpack_policy_argument(options.driverpack_policy)
+            {
+                let _ = writeln!(script, "get driverpacks {}", arg);
+                script.push_str("onerror goto end\n\n");
             }
 
             push_echo_line(
@@ -731,11 +731,11 @@ fn build_sdio_script(work_dir: &Path, options: &SdioScriptOptions, mode: ScriptM
             script.push_str("# Record planned driver changes\n");
             script.push_str("writedevicelist selected_device_report.txt\n\n");
 
-            if should_download_driverpacks(mode, options) {
-                if let Some(arg) = driverpack_policy_argument(options.driverpack_policy) {
-                    let _ = writeln!(script, "get driverpacks {}", arg);
-                    script.push_str("onerror goto end\n\n");
-                }
+            if should_download_driverpacks(mode, options)
+                && let Some(arg) = driverpack_policy_argument(options.driverpack_policy)
+            {
+                let _ = writeln!(script, "get driverpacks {}", arg);
+                script.push_str("onerror goto end\n\n");
             }
 
             script.push_str("install\n");
