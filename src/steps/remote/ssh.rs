@@ -1,5 +1,6 @@
 use color_eyre::eyre::Result;
 use rust_i18n::t;
+use tracing::debug;
 
 use crate::{
     command::CommandExt, error::SkipStep, execution_context::ExecutionContext, terminal::print_separator, utils,
@@ -8,6 +9,21 @@ use crate::{
 fn prepare_async_ssh_command(args: &mut Vec<&str>) {
     args.insert(0, "ssh");
     args.push("--keep");
+}
+
+/// Build the remote shell invocation command.
+///
+/// Uses `$SHELL -lc` for login shell support, with a fallback to `$SHELL -c`
+/// for shells that don't support `-l` with `-c` (e.g. FreeBSD's /bin/sh).
+fn remote_shell_command(topgrade_cmd: &str, hostname: &str) -> String {
+    let env = format!("TOPGRADE_PREFIX={hostname}");
+    // Try `$SHELL -lc` first; if the shell doesn't support `-l` with `-c`,
+    // fall back to `$SHELL -c` (POSIX-compatible).
+    format!(
+        "env {env} $SHELL -lc {cmd} 2>/dev/null || env {env} $SHELL -c {cmd}",
+        env = shell_words::quote(&env),
+        cmd = shell_words::quote(topgrade_cmd),
+    )
 }
 
 pub fn ssh_step(ctx: &ExecutionContext, hostname: &str) -> Result<()> {
@@ -21,14 +37,16 @@ pub fn ssh_step(ctx: &ExecutionContext, hostname: &str) -> Result<()> {
         topgrade_path.to_string()
     };
 
+    let remote_cmd = remote_shell_command(&topgrade_cmd, hostname);
+    debug!("Remote command for {hostname}: {remote_cmd}");
+
     let mut args = vec!["-t", hostname];
 
     if let Some(ssh_arguments) = ctx.config().ssh_arguments() {
         args.extend(ssh_arguments.split_whitespace());
     }
 
-    let env = format!("TOPGRADE_PREFIX={hostname}");
-    args.extend(["env", &env, "$SHELL", "-lc", &topgrade_cmd]);
+    args.push(&remote_cmd);
 
     if ctx.config().run_in_tmux() && !ctx.run_type().dry() {
         #[cfg(unix)]
@@ -45,15 +63,6 @@ pub fn ssh_step(ctx: &ExecutionContext, hostname: &str) -> Result<()> {
         ctx.execute("wt").args(&args).spawn()?;
         Err(SkipStep(String::from(t!("Remote Topgrade launched in an external terminal"))).into())
     } else {
-        let mut args = vec!["-t", hostname];
-
-        if let Some(ssh_arguments) = ctx.config().ssh_arguments() {
-            args.extend(ssh_arguments.split_whitespace());
-        }
-
-        let env = format!("TOPGRADE_PREFIX={hostname}");
-        args.extend(["env", &env, "$SHELL", "-lc", &topgrade_cmd]);
-
         print_separator(format!("Remote ({hostname})"));
         println!("{}", t!("Connecting to {hostname}...", hostname = hostname));
 
