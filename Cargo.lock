@@ -2912,10 +2912,17 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
 name = "schannel"
 version = "0.1.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "891d81b926048e76efe18581bf793546b4c0eaf8448d72be8de2bbee5fd166e1"
+=======
+name = "self-replace"
+version = "1.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f7828a58998685d8bf5a3c5e7a3379a5867289c20828c3ee436280b44b598515"
+>>>>>>> pr-797
 dependencies = [
  "windows-sys 0.61.2",
 ]
@@ -3625,6 +3632,7 @@ dependencies = [
  "regex-split",
  "rust-i18n",
  "rust-ini",
+ "self-replace",
  "self_update",
  "semver",
  "serde",

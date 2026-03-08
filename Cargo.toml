@@ -36,7 +36,7 @@ shell-words = "1.1"
 color-eyre = "0.6"
 tracing = { version = "0.1", features = ["attributes", "log"] }
 tracing-subscriber = { version = "0.3.20", features = ["env-filter", "time"] }
-merge = "0.2"
+merge = "0.1"
 regex-split = "0.1"
 notify-rust = "4.12.0"
 wildmatch = "2.3.0"
@@ -88,6 +88,7 @@ self_update_crate = { version = "0.42", default-features = false, optional = tru
 [target.'cfg(windows)'.dependencies]
 is_elevated = "0.1"
 parselnk = "0.1"
+self-replace = "1.4"
 self_update_crate = { version = "0.42", default-features = false, optional = true, package = "self_update", features = ["archive-zip", "compression-zip-deflate", "rustls"] }
 windows = { version = "0.62", features = ["Win32_System_Console"] }
 windows-registry = "0.6"

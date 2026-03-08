@@ -138,7 +138,7 @@ pub fn run_in_tmux(config: TmuxConfig) -> Result<()> {
 
     let is_inside_tmux = env::var("TMUX").is_ok();
     let err = match config.session_mode {
-        TmuxSessionMode::AttachIfNotInSession => {
+        TmuxSessionMode::AttachIfNotInSession | TmuxSessionMode::ReattachIfNotInSession => {
             if is_inside_tmux {
                 // Only attach to the newly-created session if we're not currently in a tmux session.
                 println!("{}", t!("Topgrade launched in a new tmux session"));
@@ -148,7 +148,7 @@ pub fn run_in_tmux(config: TmuxConfig) -> Result<()> {
             }
         }
 
-        TmuxSessionMode::AttachAlways => {
+        TmuxSessionMode::AttachAlways | TmuxSessionMode::ReattachAlways => {
             if is_inside_tmux {
                 tmux.build().args(["switch-client", "-t", &session]).exec()
             } else {
