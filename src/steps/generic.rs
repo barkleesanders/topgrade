@@ -1400,10 +1400,10 @@ pub fn run_colima(ctx: &ExecutionContext) -> Result<()> {
         .output_checked_utf8();
 
     // If Colima is running, restart it to pick up updates
-    if let Ok(output) = output {
-        if output.stdout.contains("Running") {
-            ctx.execute(&colima).args(["restart"]).status_checked()?;
-        }
+    if let Ok(output) = output
+        && output.stdout.contains("Running")
+    {
+        ctx.execute(&colima).args(["restart"]).status_checked()?;
     }
 
     Ok(())
