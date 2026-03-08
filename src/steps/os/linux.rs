@@ -625,6 +625,11 @@ fn upgrade_debian(ctx: &ExecutionContext) -> Result<()> {
         command.status_checked()?;
     }
 
+    // Check if a reboot is required after apt upgrade
+    if Path::new("/var/run/reboot-required").exists() {
+        print_info(t!("A reboot is required to complete the system update."));
+    }
+
     Ok(())
 }
 
@@ -931,8 +936,15 @@ fn should_skip_needrestart(ctx: &ExecutionContext) -> Result<()> {
             }
         }
         Distribution::Arch => {
+            // Skip if needrestart is installed via pacman (its hook will run automatically)
             if let Some(manager) = get_arch_package_manager(ctx)
                 && manager.package_installed("needrestart", ctx)?
+            {
+                return Err(SkipStep(String::from(msg)).into());
+            }
+            // Also skip if needrestart pacman hook exists directly
+            if Path::new("/etc/pacman.d/hooks/needrestart.hook").exists()
+                || Path::new("/usr/share/libalpm/hooks/needrestart.hook").exists()
             {
                 return Err(SkipStep(String::from(msg)).into());
             }
@@ -1000,7 +1012,11 @@ pub fn run_flatpak(ctx: &ExecutionContext) -> Result<()> {
     if yes {
         update_args.push("-y");
     }
-    ctx.execute(&flatpak).args(&update_args).status_checked()?;
+    // Suppress ANSI escape codes that can clutter output in non-interactive contexts
+    ctx.execute(&flatpak)
+        .args(&update_args)
+        .env("NO_COLOR", "1")
+        .status_checked()?;
 
     if cleanup {
         let mut cleanup_args = vec!["uninstall", "--user", "--unused"];
@@ -1030,7 +1046,10 @@ pub fn run_flatpak(ctx: &ExecutionContext) -> Result<()> {
         if yes {
             update_args.push("-y");
         }
-        ctx.execute(&flatpak).args(&update_args).status_checked()?;
+        ctx.execute(&flatpak)
+            .args(&update_args)
+            .env("NO_COLOR", "1")
+            .status_checked()?;
         if cleanup {
             let mut cleanup_args = vec!["uninstall", "--system", "--unused"];
             if yes {
@@ -1186,7 +1205,7 @@ pub fn run_waydroid(ctx: &ExecutionContext) -> Result<()> {
         .stdout
         .lines()
         .find(|line| line.contains("Session:"))
-        .unwrap_or_else(|| panic!("the output of `waydroid status` should contain `Session:`"));
+        .ok_or_else(|| SkipStep(t!("Could not parse waydroid status output (no Session line found)").to_string()))?;
     let is_container_running = session.contains("RUNNING");
     let assume_yes = ctx.config().yes(Step::Waydroid);
 

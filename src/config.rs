@@ -631,7 +631,6 @@ pub struct StepOrder {
 }
 
 #[derive(Deserialize, Default, Debug, Merge)]
-#[serde(deny_unknown_fields)]
 /// Configuration file
 pub struct ConfigFile {
     #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
@@ -1383,12 +1382,18 @@ impl Config {
         self.opt.env_variables()
     }
 
-    /// List of remote hosts to run Topgrade in
-    pub fn remote_topgrades(&self) -> Option<&Vec<String>> {
-        self.config_file
-            .misc
-            .as_ref()
-            .and_then(|misc| misc.remote_topgrades.as_ref())
+    /// List of remote hosts to run Topgrade in.
+    /// Whitespace is trimmed from each entry so that `remote_topgrades = ["host1 ", " host2"]`
+    /// works correctly.
+    pub fn remote_topgrades(&self) -> Option<Vec<String>> {
+        self.config_file.misc.as_ref().and_then(|misc| {
+            misc.remote_topgrades.as_ref().map(|v| {
+                v.iter()
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect()
+            })
+        })
     }
 
     /// Path to Topgrade executable used for all remote hosts
@@ -1917,6 +1922,11 @@ impl Config {
 
     pub fn verbose(&self) -> bool {
         self.opt.verbose
+    }
+
+    /// Return the list of step names passed via `--disable` on the CLI.
+    pub fn cli_disabled_steps(&self) -> &[Step] {
+        &self.opt.disable
     }
 
     /// After loading the config file, filter directives consist of 3 parts:

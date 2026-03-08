@@ -175,13 +175,17 @@ fn upgrade_wsl_distribution(wsl: &Path, dist: &str, ctx: &ExecutionContext) -> R
     // not to the inner topgrade command (see comment above).
     let mut topgrade_args = Vec::new();
     if ctx.config().verbose() {
-        topgrade_args.push("-v");
+        topgrade_args.push("-v".to_string());
     }
     if ctx.config().yes(Step::Wsl) {
-        topgrade_args.push("-y");
+        topgrade_args.push("-y".to_string());
     }
     if ctx.config().cleanup() {
-        topgrade_args.push("--cleanup");
+        topgrade_args.push("--cleanup".to_string());
+    }
+    // Forward --disable flags to the WSL topgrade invocation
+    for step in ctx.config().cli_disabled_steps() {
+        topgrade_args.push(format!("--disable {step}"));
     }
     let args = topgrade_args.join(" ");
 

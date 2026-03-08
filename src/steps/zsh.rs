@@ -35,8 +35,19 @@ pub fn zshrc() -> PathBuf {
 
 pub fn run_antidote(ctx: &ExecutionContext) -> Result<()> {
     let zsh = require("zsh")?;
-    let mut antidote = zdotdir().join(".antidote").require()?;
-    antidote.push("antidote.zsh");
+
+    // Check for antidote in zdotdir first, then Homebrew paths
+    let antidote_candidates = [
+        zdotdir().join(".antidote/antidote.zsh"),
+        PathBuf::from("/opt/homebrew/opt/antidote/share/antidote/antidote.zsh"),
+        PathBuf::from("/usr/local/opt/antidote/share/antidote/antidote.zsh"),
+    ];
+
+    let antidote = antidote_candidates
+        .iter()
+        .find(|p| p.exists())
+        .ok_or_else(|| crate::error::SkipStep("antidote not found".to_string()))?
+        .clone();
 
     print_separator("antidote");
 

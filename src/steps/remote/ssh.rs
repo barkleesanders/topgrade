@@ -71,6 +71,9 @@ pub fn ssh_step(ctx: &ExecutionContext, hostname: &str) -> Result<()> {
         // local instance instead of continuing with the remaining steps.
         let status = ctx.execute(ssh).args(&args).status_checked_with_codes_returning(&[2])?;
 
+        // Reset terminal title after remote execution (the remote may have changed it)
+        print_separator(t!("Topgrade"));
+
         if status.code() == Some(2) {
             return Err(io::Error::from(io::ErrorKind::Interrupted))
                 .context("Remote topgrade quit by user (exit code 2)");

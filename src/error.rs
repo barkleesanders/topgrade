@@ -82,7 +82,7 @@ impl Display for UnsupportedSudo<'_> {
             f,
             "{}",
             t!(
-                "{sudo_kind} does not support the {option} option",
+                "{sudo_kind} does not support the '{option}' option. Consider using a different sudo provider (e.g., sudo, doas, gsudo) that supports this feature.",
                 sudo_kind = self.sudo_kind,
                 option = self.option
             )

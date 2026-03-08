@@ -1608,6 +1608,22 @@ pub fn run_freshclam(ctx: &ExecutionContext) -> Result<()> {
     match sudo.execute(ctx, freshclam)?.status_checked() {
         Ok(()) => Ok(()), // Success! The output of only the sudo'ed process is written.
         Err(err) => {
+            // If freshclam fails, try restarting the clamav-freshclam systemd service as a fallback.
+            // This handles cases where freshclam is managed by systemd and fails due to lock conflicts.
+            #[cfg(target_os = "linux")]
+            if which("systemctl").is_some() {
+                debug!("freshclam failed, attempting to restart clamav-freshclam.service");
+                if let Ok(()) = sudo
+                    .execute(ctx, "systemctl")
+                    .and_then(|mut cmd| cmd.args(["restart", "clamav-freshclam.service"]).status_checked())
+                {
+                    println!(
+                        "{}",
+                        t!("Restarted clamav-freshclam.service to trigger database update")
+                    );
+                    return Ok(());
+                }
+            }
             // Error! We add onto the error the output of running without sudo for more information.
             Err(err.wrap_err(format!(
                 "Running `freshclam` with sudo failed as well as running without sudo. Output without sudo: {output:?}"

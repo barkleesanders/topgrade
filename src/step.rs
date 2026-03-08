@@ -653,9 +653,8 @@ impl Step {
                         .iter()
                         .filter(|t| ctx.config().should_execute_remote(hostname(), t))
                     {
-                        runner.execute(*self, format!("Remote ({remote_topgrade})"), || {
-                            crate::ssh::ssh_step(ctx, remote_topgrade)
-                        })?;
+                        let host = remote_topgrade.clone();
+                        runner.execute(*self, format!("Remote ({host})"), || crate::ssh::ssh_step(ctx, &host))?;
                     }
                 }
             }

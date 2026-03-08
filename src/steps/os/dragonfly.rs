@@ -21,15 +21,21 @@ pub fn audit_packages(ctx: &ExecutionContext) -> Result<()> {
     print_separator(t!("DragonFly BSD Audit"));
 
     let sudo = ctx.require_sudo()?;
+    // Exit code 1 means the audit ran successfully but vulnerable packages remain.
+    // Other non-zero exit codes indicate actual errors and should be propagated.
     sudo.execute(ctx, "/usr/local/sbin/pkg")?
         .args(["audit", "-Fr"])
         .status_checked_with(|status| {
-            if !status.success() {
+            if status.code() == Some(1) {
                 println!(
                     "{}",
                     t!("The package audit was successful, but vulnerable packages still remain on the system")
                 );
+                Ok(())
+            } else if status.success() {
+                Ok(())
+            } else {
+                Err(())
             }
-            Ok(())
         })
 }

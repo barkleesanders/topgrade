@@ -1258,14 +1258,14 @@ _version: 2
   zh_CN: "检测到 Windows Sudo，但其正在使用“新窗口”模式"
   zh_TW: "偵測到 Windows Sudo，但它正在使用「新視窗」模式"
   de: "Windows Sudo gefunden, aber es verwendet den Modus „In einem neuen Fenster“"
-"{sudo_kind} does not support the {option} option":
-  en: "%{sudo_kind} does not support the %{option} option"
-  lt: "%{sudo_kind} nepalaiko parinkties %{option}"
-  es: "%{sudo_kind} no admite la opción %{option}"
-  fr: "%{sudo_kind} ne prend pas en charge l’option %{option}"
-  zh_CN: "%{sudo_kind} 不支持 %{option} 选项"
-  zh_TW: "%{sudo_kind} 不支援 %{option} 選項"
-  de: "%{sudo_kind} unterstützt die Option %{option} nicht"
+"{sudo_kind} does not support the ‘{option}’ option. Consider using a different sudo provider (e.g., sudo, doas, gsudo) that supports this feature.":
+  en: "%{sudo_kind} does not support the ‘%{option}’ option. Consider using a different sudo provider (e.g., sudo, doas, gsudo) that supports this feature."
+  lt: "%{sudo_kind} nepalaiko parinkties ‘%{option}’. Apsvarstykite galimybę naudoti kitą sudo teikėją (pvz., sudo, doas, gsudo), kuris palaiko šią funkciją."
+  es: "%{sudo_kind} no admite la opción ‘%{option}’. Considere usar un proveedor sudo diferente (p. ej., sudo, doas, gsudo) que admita esta función."
+  fr: "%{sudo_kind} ne prend pas en charge l’option ‘%{option}’. Envisagez d’utiliser un autre fournisseur sudo (par exemple, sudo, doas, gsudo) qui prend en charge cette fonctionnalité."
+  zh_CN: "%{sudo_kind} 不支持 ‘%{option}’ 选项。请考虑使用支持此功能的其他 sudo 提供程序（例如 sudo、doas、gsudo）。"
+  zh_TW: "%{sudo_kind} 不支援 ‘%{option}’ 選項。請考慮使用支援此功能的其他 sudo 提供者（例如 sudo、doas、gsudo）。"
+  de: "%{sudo_kind} unterstützt die Option ‘%{option}’ nicht. Erwägen Sie die Verwendung eines anderen sudo-Anbieters (z.B. sudo, doas, gsudo), der diese Funktion unterstützt."
 "sudo as user '{user}'":
   en: "sudo as user '%{user}'"
   lt: "sudo kaip vartotojas '%{user}'"
@@ -1834,3 +1834,25 @@ _version: 2
   zh_CN: "现在安装所选驱动程序吗？将首先创建一个还原点。(y/N)"
   zh_TW: "現在要安裝所選的驅動程式嗎？將先建立還原點。(y/N)"
   de: "Ausgewählte Treiber jetzt installieren? Zuerst wird ein Wiederherstellungspunkt erstellt. (y/N)"
+"Could not parse waydroid status output (no Session line found)":
+  en: "Could not parse waydroid status output (no Session line found)"
+"A reboot is required to complete the system update.":
+  en: "A reboot is required to complete the system update."
+"Restarted clamav-freshclam.service to trigger database update":
+  en: "Restarted clamav-freshclam.service to trigger database update"
+"Micromamba":
+  en: "Micromamba"
+"Microsoft AutoUpdate":
+  en: "Microsoft AutoUpdate"
+"(P)oweroff":
+  en: "(P)oweroff"
+"Powering off...":
+  en: "Powering off..."
+"Micromamba not found":
+  en: "Micromamba not found"
+"msupdate not found":
+  en: "msupdate not found"
+"MSYS2":
+  en: "MSYS2"
+"Available steps:":
+  en: "Available steps:"

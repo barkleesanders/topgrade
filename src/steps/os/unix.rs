@@ -1151,6 +1151,13 @@ pub fn run_atuin(ctx: &ExecutionContext) -> Result<()> {
 }
 
 pub fn reboot(ctx: &ExecutionContext) -> Result<()> {
+    // Prefer `systemctl reboot` on systemd-based systems
+    if Path::new("/run/systemd/system").exists() {
+        if let Ok(systemctl) = require("systemctl") {
+            return ctx.execute(systemctl).arg("reboot").status_checked();
+        }
+    }
+
     match ctx.sudo() {
         Some(sudo) => sudo.execute(ctx, "reboot")?.status_checked(),
         None => ctx.execute("reboot").status_checked(),
