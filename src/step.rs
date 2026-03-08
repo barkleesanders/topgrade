@@ -14,7 +14,7 @@ use crate::steps::remote::vagrant;
 use crate::steps::*;
 use crate::utils::hostname;
 
-pub const DEPRECATED_STEPS: [Step; 1] = [Step::NixHelper];
+pub const DEPRECATED_STEPS: [Step; 0] = [];
 
 #[derive(ValueEnum, EnumString, VariantNames, Debug, Clone, PartialEq, Eq, Deserialize, EnumIter, Copy, EnumCount, strum::Display)]
 #[clap(rename_all = "snake_case")]
@@ -117,7 +117,6 @@ pub enum Step {
     Mise,
     Myrepos,
     Nix,
-    NixHelper,
     Node,
     Ollama,
     Opam,
@@ -475,7 +474,6 @@ impl Step {
                 #[cfg(unix)]
                 runner.execute(*self, "nix upgrade-nix", || unix::run_nix_self_upgrade(ctx))?
             }
-            NixHelper => {}
             Node => runner.execute(*self, "npm", || node::run_npm_upgrade(ctx))?,
             Ollama => runner.execute(*self, "Ollama", || generic::run_ollama_pull(ctx))?,
             Opam => runner.execute(*self, "opam", || generic::run_opam_update(ctx))?,
@@ -819,7 +817,6 @@ pub(crate) fn default_steps() -> Vec<Step> {
     steps.extend_from_slice(&[
         Yadm,
         Nix,
-        NixHelper,
         Guix,
         HomeManager,
         Asdf,
