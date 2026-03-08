@@ -249,9 +249,18 @@ pub fn windows_update(ctx: &ExecutionContext) -> Result<()> {
 }
 
 pub fn microsoft_store(ctx: &ExecutionContext) -> Result<()> {
-    let powershell = ctx.require_powershell()?;
-
     print_separator(t!("Microsoft Store"));
+
+    // Try the `store` CLI first (Microsoft Store CLI tool)
+    if let Ok(store_cli) = require("store") {
+        debug!("Found Microsoft Store CLI at {}", store_cli.display());
+        println!("{}", t!("Checking for updates via store CLI..."));
+        ctx.execute(&store_cli).arg("updates").status_checked()?;
+        return Ok(());
+    }
+
+    // Fall back to PowerShell CIM method
+    let powershell = ctx.require_powershell()?;
 
     println!("{}", t!("Scanning for updates..."));
 
