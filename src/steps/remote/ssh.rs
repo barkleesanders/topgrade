@@ -1,9 +1,9 @@
-use color_eyre::eyre::Result;
+use std::io;
+
+use color_eyre::eyre::{Context, Result};
 use rust_i18n::t;
 
-use crate::{
-    command::CommandExt, error::SkipStep, execution_context::ExecutionContext, terminal::print_separator, utils,
-};
+use crate::{error::SkipStep, execution_context::ExecutionContext, terminal::print_separator, utils};
 
 fn prepare_async_ssh_command(args: &mut Vec<&str>) {
     args.insert(0, "ssh");
@@ -50,6 +50,19 @@ pub fn ssh_step(ctx: &ExecutionContext, hostname: &str) -> Result<()> {
         print_separator(format!("Remote ({hostname})"));
         println!("{}", t!("Connecting to {hostname}...", hostname = hostname));
 
-        ctx.execute(ssh).args(&args).status_checked()
+        // Use status_checked_with_codes_returning to detect exit code 2 (user quit).
+        // When a remote topgrade exits with code 2, propagate the quit to the
+        // local instance instead of continuing with the remaining steps.
+        let status = ctx
+            .execute(ssh)
+            .args(&args)
+            .status_checked_with_codes_returning(&[2])?;
+
+        if status.code() == Some(2) {
+            return Err(io::Error::from(io::ErrorKind::Interrupted))
+                .context("Remote topgrade quit by user (exit code 2)");
+        }
+
+        Ok(())
     }
 }
