@@ -249,10 +249,15 @@ pub fn run_oh_my_bash(ctx: &ExecutionContext) -> Result<()> {
 
     print_separator("oh-my-bash");
 
-    let mut update_script = oh_my_bash;
+    let mut update_script = oh_my_bash.clone();
     update_script.push_str("/tools/upgrade.sh");
 
-    ctx.execute("bash").arg(update_script).status_checked()
+    // Set OSH environment variable so the upgrade script works even when
+    // topgrade is invoked from a non-bash shell (e.g. fish, zsh).
+    ctx.execute("bash")
+        .arg(update_script)
+        .env("OSH", &oh_my_bash)
+        .status_checked()
 }
 
 pub fn run_oh_my_fish(ctx: &ExecutionContext) -> Result<()> {
