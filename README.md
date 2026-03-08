@@ -198,6 +198,32 @@ brew = "brew cleanup"
 flatpak = "flatpak uninstall --unused -y"
 ```
 
+## Coverage Audit
+
+Topgrade handles dozens of package managers automatically, but tools installed via direct binary
+download, `curl | sh` installers, or `git clone` have no built-in update path. Over time these
+"orphan" binaries silently fall behind.
+
+The `contrib/topgrade-audit.sh` script scans common binary locations (`~/.local/bin`,
+`~/.cargo/bin`, `/usr/local/bin`, etc.) and cross-references each tool against your `topgrade.toml`
+custom commands and built-in package manager steps. Any tool without a known update path is
+flagged as a blind spot.
+
+```bash
+# Run manually
+contrib/topgrade-audit.sh
+
+# Run automatically after each topgrade cycle
+# Add to your topgrade.toml:
+[post_commands]
+"Coverage Audit" = "~/.config/topgrade-audit.sh --quiet || true"
+```
+
+The script supports `--quiet` mode (only shows blind spots) and `--json` for machine-readable output.
+
+See `config.example.toml` for patterns to add custom update commands for GitHub release binaries,
+curl installers, and git repos.
+
 ## Remote Execution
 
 You can specify a key called `remote_topgrades` in the configuration file.
