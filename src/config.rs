@@ -452,6 +452,14 @@ pub struct Zigup {
 
 #[derive(Deserialize, Default, Debug, Merge)]
 #[serde(deny_unknown_fields)]
+pub struct Ldcup {
+    target_versions: Option<Vec<String>>,
+    install_dir: Option<String>,
+    cleanup: Option<bool>,
+}
+
+#[derive(Deserialize, Default, Debug, Merge)]
+#[serde(deny_unknown_fields)]
 pub struct VscodeConfig {
     profile: Option<String>,
 }
@@ -568,6 +576,9 @@ pub struct ConfigFile {
 
     #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
     zigup: Option<Zigup>,
+
+    #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
+    ldcup: Option<Ldcup>,
 
     #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
     vscode: Option<VscodeConfig>,
@@ -2000,6 +2011,29 @@ impl Config {
             .zigup
             .as_ref()
             .and_then(|zigup| zigup.cleanup)
+            .unwrap_or(false)
+    }
+
+    pub fn ldcup_target_versions(&self) -> Vec<String> {
+        self.config_file
+            .ldcup
+            .as_ref()
+            .and_then(|ldcup| ldcup.target_versions.clone())
+            .unwrap_or(vec!["ldc2-master".to_owned()])
+    }
+
+    pub fn ldcup_install_dir(&self) -> Option<&str> {
+        self.config_file
+            .ldcup
+            .as_ref()
+            .and_then(|ldcup| ldcup.install_dir.as_deref())
+    }
+
+    pub fn ldcup_cleanup(&self) -> bool {
+        self.config_file
+            .ldcup
+            .as_ref()
+            .and_then(|ldcup| ldcup.cleanup)
             .unwrap_or(false)
     }
 

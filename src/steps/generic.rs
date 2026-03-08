@@ -16,6 +16,7 @@ use tempfile::tempfile_in;
 use tracing::{debug, error, warn};
 
 use crate::HOME_DIR;
+use crate::runner::UpdatedComponent;
 use crate::command::{CommandExt, Utf8Output};
 use crate::execution_context::ExecutionContext;
 use crate::executor::ExecutorOutput;
@@ -1565,7 +1566,7 @@ pub fn run_poetry(ctx: &ExecutionContext) -> Result<()> {
     ctx.execute(&poetry).args(["self", "update"]).status_checked()
 }
 
-pub fn run_uv(ctx: &ExecutionContext) -> Result<()> {
+pub fn run_uv(ctx: &ExecutionContext) -> Result<Vec<UpdatedComponent>> {
     let uv_exec = require("uv")?;
     print_separator("uv");
 
@@ -1685,7 +1686,7 @@ pub fn run_uv(ctx: &ExecutionContext) -> Result<()> {
         ctx.execute(&uv_exec).args(["cache", "prune"]).status_checked()?;
     }
 
-    Ok(())
+    Ok(updated)
 }
 
 /// Involve `zvm upgrade` to update ZVM
@@ -1755,6 +1756,37 @@ pub fn run_zigup(ctx: &ExecutionContext) -> Result<()> {
 
     if config.zigup_cleanup() {
         ctx.execute(zigup).args(&path_args).arg("clean").status_checked()?;
+    }
+
+    Ok(())
+}
+
+pub fn run_ldcup(ctx: &ExecutionContext) -> Result<()> {
+    let ldcup = require("ldcup")?;
+    let config = ctx.config();
+
+    print_separator("ldcup");
+
+    let mut path_args = Vec::new();
+
+    if let Some(path) = config.ldcup_install_dir() {
+        path_args.push(format!("--install-dir={}", shellexpand::tilde(path).into_owned()));
+    }
+
+    for ldc_version in config.ldcup_target_versions() {
+        ctx.execute(&ldcup)
+            .args(&path_args)
+            .arg("install")
+            .arg(&ldc_version)
+            .status_checked()?;
+
+        if config.ldcup_cleanup() {
+            ctx.execute(&ldcup)
+                .args(&path_args)
+                .arg("uninstall")
+                .arg(&ldc_version)
+                .status_checked()?;
+        }
     }
 
     Ok(())
@@ -1942,10 +1974,10 @@ pub fn run_jetbrains_webstorm(ctx: &ExecutionContext) -> Result<()> {
     run_jetbrains_ide(ctx, require_one(["webstorm", "webstorm-eap"])?, "WebStorm")
 }
 
-pub fn run_yazi(ctx: &ExecutionContext, confirm_run: &dyn Fn()) -> Result<()> {
+pub fn run_yazi(ctx: &ExecutionContext) -> Result<()> {
     let ya = require("ya")?;
 
-    confirm_run();
+    print_separator("Yazi packages");
 
     ctx.execute(ya).args(["pkg", "upgrade"]).status_checked()
 }
