@@ -9,7 +9,7 @@ use crate::ctrlc;
 use crate::error::{DryRun, MissingSudo, SkipStep};
 use crate::execution_context::ExecutionContext;
 use crate::step::Step;
-use crate::terminal::{ShouldRetry, print_error, print_warning, should_retry};
+use crate::terminal::{ShouldRetry, print_error, print_separator, print_warning, should_retry};
 
 pub enum StepResult {
     Success,
@@ -79,6 +79,14 @@ impl<'a> Runner<'a> {
         K: Into<Cow<'a, str>> + Debug,
         F: Fn() -> Result<()>,
     {
+        todo!("This function will be removed and `execute_2` will be renamed to `execute`")
+    }
+
+    pub fn execute_2<F, M>(&mut self, step: Step, key: M, func: F) -> Result<()>
+    where
+        F: Fn(&ExecutionContext, &dyn Fn()) -> Result<()>,
+        M: Into<Cow<'a, str>> + Debug,
+    {
         if !self.ctx.config().should_run(step) {
             return Ok(());
         }
@@ -86,12 +94,14 @@ impl<'a> Runner<'a> {
         let key: Cow<'a, str> = key.into();
         debug!("Step {:?}", key);
 
-        // alter the `func` to put it in a span
+        let confirm_run = || self.confirm_run(&key);
+
+        // Alter the `func` to put it in a span, and add `ctx` and `confirm_run`
         let func = || {
             let span =
                 tracing::span!(parent: tracing::Span::none(), tracing::Level::TRACE, "step", step = ?step, key = %key);
             let _guard = span.enter();
-            func()
+            func(self.ctx, &confirm_run)
         };
 
         // Total max attempts = 1 (initial) + auto_retry count
@@ -174,6 +184,10 @@ impl<'a> Runner<'a> {
         }
 
         Ok(())
+    }
+
+    fn confirm_run(&self, key: &str) {
+        print_separator(key);
     }
 
     pub fn report(&self) -> &Report<'_> {
