@@ -91,8 +91,6 @@ This is an **enhanced fork** of [topgrade-rs/topgrade](https://github.com/topgra
 
 ## Installation
 
-[![Packaging status](https://repology.org/badge/vertical-allrepos/topgrade.svg)](https://repology.org/project/topgrade/versions)
-
 ### From This Fork
 
 ```bash
