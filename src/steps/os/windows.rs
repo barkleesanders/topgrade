@@ -169,18 +169,24 @@ fn upgrade_wsl_distribution(wsl: &Path, dist: &str, ctx: &ExecutionContext) -> R
     // appends the next argument like so:
     // > `C:\WINDOWS\system32\wsl.EXE -d Ubuntu bash -lc 'TOPGRADE_PREFIX=Ubuntu exec /bin/topgrade' -v`
     // which means `-v` isn't passed to `topgrade`.
-    let mut args = String::new();
+    // All flags must be included in the single string passed to `bash -lc`
+    // because WSL treats each `arg()` call as a separate argument to wsl.exe,
+    // not to the inner topgrade command (see comment above).
+    let mut topgrade_args = Vec::new();
     if ctx.config().verbose() {
-        args.push_str("-v");
+        topgrade_args.push("-v");
     }
+    if ctx.config().yes(Step::Wsl) {
+        topgrade_args.push("-y");
+    }
+    if ctx.config().cleanup() {
+        topgrade_args.push("--cleanup");
+    }
+    let args = topgrade_args.join(" ");
 
     command
         .args(["-d", dist, "bash", "-lc"])
         .arg(format!("TOPGRADE_PREFIX={dist} exec {topgrade} {args}"));
-
-    if ctx.config().yes(Step::Wsl) {
-        command.arg("-y");
-    }
 
     command.status_checked()
 }
