@@ -87,7 +87,28 @@ impl NPM {
         Version::parse(&version_str?).map_err(std::convert::Into::into)
     }
 
+    /// Check if any global packages are outdated before running update.
+    /// npm 11+ with newer Node versions can take over a minute to "reconcile"
+    /// the global tree even when nothing changed (phantom "changed N packages").
+    fn has_outdated_packages(&self, ctx: &ExecutionContext) -> bool {
+        let args = ["outdated", self.global_location_arg(ctx)];
+        // `npm outdated` exits 0 if nothing is outdated, 1 if something is
+        match ctx.execute(&self.command).always().args(args).output_checked_utf8() {
+            Ok(output) => !output.stdout.trim().is_empty(),
+            // Exit code 1 means outdated packages exist
+            Err(_) => true,
+        }
+    }
+
     fn upgrade(&self, ctx: &ExecutionContext, use_sudo: bool) -> Result<()> {
+        // Skip npm update if nothing is outdated — avoids npm 11's slow
+        // phantom tree reconciliation ("changed 4000+ packages" with no
+        // actual version changes, taking 1+ minutes every run).
+        if self.variant.is_npm() && !self.has_outdated_packages(ctx) {
+            print_info("All global packages are up to date");
+            return Ok(());
+        }
+
         let args = ["update", self.global_location_arg(ctx)];
         if use_sudo {
             let sudo = ctx.require_sudo()?;
