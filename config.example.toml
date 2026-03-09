@@ -459,8 +459,10 @@
 # Use sudo if the NPM directory isn't owned by the current user
 # use_sudo = true
 
-# Run `npm audit fix` after updating global packages to auto-fix known vulnerabilities.
-# Only applies safe, non-breaking fixes (never uses --force).
+# Run `npm audit fix` after updating global packages.
+# NOTE: npm does not support auditing global packages (EAUDITGLOBAL error).
+# This option is kept for backwards compatibility but will only print a warning.
+# To audit vulnerabilities, run `npm audit` in individual project directories.
 # audit_fix = true
 
 
