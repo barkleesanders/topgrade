@@ -234,6 +234,7 @@ pub enum Step {
     SelfUpdate,
     Sheldon,
     Shell,
+    Skills,
     Snap,
     Soar,
     Sparkle,
@@ -257,6 +258,7 @@ pub enum Step {
     Vscodium,
     VscodiumInsiders,
     Waydroid,
+    Windsurf,
     Winget,
     Wsl,
     WslUpdate,
@@ -655,7 +657,7 @@ impl Step {
             Protonplus =>
             {
                 #[cfg(target_os = "linux")]
-                runner.execute(*self, "protonplus", || linux::run_protonplus_update(ctx))?
+                runner.execute(*self, "ProtonPlus", || linux::run_protonplus_update(ctx))?
             }
             Protonup =>
             {
@@ -741,6 +743,7 @@ impl Step {
                     runner.execute(*self, "fundle", || unix::run_fundle(ctx))?
                 }
             }
+            Skills => runner.execute(*self, "Skills", || generic::run_skills(ctx))?,
             Snap =>
             {
                 #[cfg(target_os = "linux")]
@@ -833,6 +836,9 @@ impl Step {
                 #[cfg(target_os = "linux")]
                 runner.execute(*self, "Waydroid", || linux::run_waydroid(ctx))?
             }
+            Windsurf => runner.execute(*self, "Windsurf extensions", || {
+                generic::run_windsurf_extensions_update(ctx)
+            })?,
             Winget =>
             {
                 #[cfg(windows)]
@@ -1008,6 +1014,7 @@ pub(crate) fn default_steps() -> Vec<Step> {
         VscodeInsiders,
         Vscodium,
         VscodiumInsiders,
+        Windsurf,
         Conda,
         Mamba,
         Micromamba,
@@ -1056,6 +1063,8 @@ pub(crate) fn default_steps() -> Vec<Step> {
         GitRepos,
         ClamAvDb,
         ClaudeCode,
+        Colima,
+        Skills,
         PlatformioCore,
         Lensfun,
         Poetry,

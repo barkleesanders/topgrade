@@ -1,3 +1,4 @@
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use color_eyre::eyre::Result;
@@ -644,7 +645,7 @@ fn upgrade_debian(ctx: &ExecutionContext) -> Result<()> {
     let (kind, apt) = detect_apt()?;
 
     // MIST does not require `sudo`
-    if matches!(kind, Mist) {
+    if let Mist = kind {
         ctx.execute(&apt).arg("update").status_checked()?;
         ctx.execute(&apt).arg("upgrade").status_checked()?;
 
@@ -661,7 +662,7 @@ fn upgrade_debian(ctx: &ExecutionContext) -> Result<()> {
     }
 
     let mut command = sudo.execute(ctx, &apt)?;
-    if matches!(kind, Nala) {
+    if let Nala = kind {
         command.arg("upgrade");
     } else {
         let apt_command = ctx.config().apt_command();
@@ -699,15 +700,22 @@ pub fn run_deb_get(ctx: &ExecutionContext) -> Result<()> {
 
     print_separator("deb-get");
 
-    ctx.execute(&deb_get).arg("update").status_checked()?;
-    ctx.execute(&deb_get)
-        .arg("upgrade")
-        // Since the `apt` step already updates all other apt packages, don't check for updates
-        //  to all packages here. This does suboptimally check for updates for deb-get packages
-        //  that apt can update (that were installed via a repository), but that is only a few,
-        //  and there's nothing we can do about that.
-        .arg("--dg-only")
-        .status_checked()?;
+    // When the system step runs, apt is already up to date, so we set DISABLE_APT=y to skip
+    // redundant apt operations in deb-get. Otherwise, we pass --dg-only to `upgrade` so that
+    // deb-get only updates apt managed packages that were installed via deb-get.
+    let disable_apt = ctx.config().should_run(Step::System);
+    let upgrade_opt = (!disable_apt).then_some("--dg-only");
+
+    let base_cmd = || {
+        let mut cmd = ctx.execute(&deb_get);
+        if disable_apt {
+            cmd.env("DISABLE_APT", "y");
+        }
+        cmd
+    };
+
+    base_cmd().arg("update").status_checked()?;
+    base_cmd().arg("upgrade").args(upgrade_opt).status_checked()?;
 
     if ctx.config().cleanup() {
         let output = ctx.execute(&deb_get).arg("clean").output_checked()?;
@@ -1307,13 +1315,39 @@ pub fn run_auto_cpufreq(ctx: &ExecutionContext) -> Result<()> {
 }
 
 pub fn run_gearlever(ctx: &ExecutionContext) -> Result<()> {
-    let (mut cmd, native) = match require("gearlever") {
-        Ok(p) => (ctx.execute(p), true),
-        Err(_) => (require_flatpak(ctx, "it.mijorus.gearlever")?, false),
-    };
+    let native = require("gearlever").is_ok();
+
+    if !native {
+        require_flatpak(ctx, "it.mijorus.gearlever")?;
+    }
 
     print_separator(if native { "Gear Lever" } else { "Gear Lever (Flatpak)" });
 
+    let mut list_updates = if native {
+        ctx.execute(require("gearlever")?).always()
+    } else {
+        let flatpak = require("flatpak")?;
+        let mut cmd = ctx.execute(&flatpak).always();
+        cmd.args(["run", "it.mijorus.gearlever"]);
+        cmd
+    };
+    list_updates.arg("--list-updates");
+
+    let list_output = list_updates.output_checked_utf8()?;
+    if list_output.stdout.trim() == "No updates available" {
+        std::io::stdout().write_all(list_output.stdout.as_bytes())?;
+        std::io::stderr().write_all(list_output.stderr.as_bytes())?;
+        return Ok(());
+    }
+
+    let mut cmd = if native {
+        ctx.execute(require("gearlever")?)
+    } else {
+        let flatpak = require("flatpak")?;
+        let mut cmd = ctx.execute(&flatpak);
+        cmd.args(["run", "it.mijorus.gearlever"]);
+        cmd
+    };
     cmd.args(["--update", "--all"]);
 
     if ctx.config().yes(Step::Gearlever) {
@@ -1335,10 +1369,8 @@ pub fn run_protonplus_update(ctx: &ExecutionContext) -> Result<()> {
     let protonplus = require("protonplus")?;
 
     if let Err(e) = ctx.execute(&protonplus).args(["invalidarg67"]).output_checked()
-        && matches!(
-            e.downcast_ref(),
-            Some(TopgradeError::ProcessFailedWithOutput(_, _, stderr)) if stderr.contains("This application can not open files")
-        )
+        && let Some(TopgradeError::ProcessFailedWithOutput(_, _, stderr)) = e.downcast_ref()
+        && stderr.contains("This application can not open files")
     {
         return Err(SkipStep("Updates unsupported for ProtonPlus versions under v0.5.17".to_string()).into());
     }

@@ -579,6 +579,7 @@ enum VSCodeVariant {
     Codium,
     CodiumInsiders,
     Cursor,
+    Windsurf,
 }
 
 impl VSCodeVariant {
@@ -590,6 +591,7 @@ impl VSCodeVariant {
             VSCodeVariant::Codium => "VSCodium",
             VSCodeVariant::CodiumInsiders => "VSCodium Insiders",
             VSCodeVariant::Cursor => "Cursor",
+            VSCodeVariant::Windsurf => "Windsurf",
         }
     }
 
@@ -601,6 +603,7 @@ impl VSCodeVariant {
             VSCodeVariant::Codium => "codium",
             VSCodeVariant::CodiumInsiders => "codium-insiders",
             VSCodeVariant::Cursor => "cursor",
+            VSCodeVariant::Windsurf => "windsurf",
         }
     }
 
@@ -612,6 +615,7 @@ impl VSCodeVariant {
             VSCodeVariant::Codium => "VSCodium extensions",
             VSCodeVariant::CodiumInsiders => "VSCodium Insiders extensions",
             VSCodeVariant::Cursor => "Cursor extensions",
+            VSCodeVariant::Windsurf => "Windsurf extensions",
         }
     }
 
@@ -620,7 +624,7 @@ impl VSCodeVariant {
             VSCodeVariant::Antigravity | VSCodeVariant::Code | VSCodeVariant::CodeInsiders | VSCodeVariant::Cursor => {
                 true
             }
-            VSCodeVariant::Codium | VSCodeVariant::CodiumInsiders => false,
+            VSCodeVariant::Codium | VSCodeVariant::CodiumInsiders | VSCodeVariant::Windsurf => false,
         }
     }
 }
@@ -731,6 +735,10 @@ pub fn run_cursor_extensions_update(ctx: &ExecutionContext) -> Result<()> {
     run_vscode_compatible(VSCodeVariant::Cursor, ctx)
 }
 
+pub fn run_windsurf_extensions_update(ctx: &ExecutionContext) -> Result<()> {
+    run_vscode_compatible(VSCodeVariant::Windsurf, ctx)
+}
+
 pub fn run_antigravity_extensions_update(ctx: &ExecutionContext) -> Result<()> {
     run_vscode_compatible(VSCodeVariant::Antigravity, ctx)
 }
@@ -750,7 +758,9 @@ pub fn run_pipx_update(ctx: &ExecutionContext) -> Result<()> {
         .output_checked_utf8()
         .map(|s| s.stdout.trim().to_owned());
     let version = Version::parse(&version_str?);
-    if matches!(version, Ok(version) if version >= Version::new(1, 4, 0)) {
+    if let Ok(version) = version
+        && version >= Version::new(1, 4, 0)
+    {
         command_args.push("--quiet");
     }
 
@@ -2646,4 +2656,17 @@ pub fn run_ytdlp(ctx: &ExecutionContext) -> Result<()> {
     std::io::stdout().lock().write_all(&output.stdout).unwrap();
     std::io::stderr().lock().write_all(&output.stderr).unwrap();
     Err(eyre!("yt-dlp self-update failed"))
+}
+
+pub fn run_skills(ctx: &ExecutionContext) -> Result<()> {
+    let npx = require("npx")?;
+
+    let skill_lock = HOME_DIR.join(".agents").join(".skill-lock.json");
+    if !skill_lock.exists() {
+        return Err(SkipStep("No ~/.agents/.skill-lock.json found".to_string()).into());
+    }
+
+    print_separator("Skills");
+
+    ctx.execute(npx).args(["skills", "update"]).status_checked()
 }
