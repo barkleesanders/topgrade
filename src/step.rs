@@ -1102,7 +1102,6 @@ pub(crate) fn default_steps() -> Vec<Step> {
         JetbrainsWebstorm,
         Yazi,
         YtDlp,
-        Colima,
         InstallRelease,
         Soar,
         Falconf,
