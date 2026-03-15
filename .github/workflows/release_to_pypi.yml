@@ -8,7 +8,7 @@ permissions:
   contents: read
 
 jobs:
-  # TODO: make linux/windows/macos/sdist a matrix. See how other workflows do it.
+  # NOTE: linux/windows/macos/sdist are kept as separate jobs for per-platform matrix strategies.
   linux:
     runs-on: ubuntu-latest
     strategy:
@@ -98,10 +98,8 @@ jobs:
     environment:
       name: pypi
     permissions:
-      # Use to sign the release artifacts, and for trusted publishing
+      # Used for trusted publishing to PyPI
       id-token: write
-      # Used to upload release artifacts
-      contents: write
       # Used to generate artifact attestation
       attestations: write
     steps:
