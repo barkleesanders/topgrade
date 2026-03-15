@@ -123,8 +123,8 @@ pub fn run_in_tmux(config: TmuxConfig) -> Result<()> {
             String::from("TOPGRADE_KEEP_END=1"),
             String::from("TOPGRADE_INSIDE_TMUX=1"),
         ];
-        // TODO: Should we use `topgrade` instead of the first argument here, which may be
-        // a local path?
+        // NOTE: Uses the original argv[0] (which may be a local path) rather than just "topgrade"
+        // to preserve the user's invocation method.
         command.extend(env::args());
         shell_words::join(command)
     };

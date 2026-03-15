@@ -104,8 +104,7 @@ impl Brew {
         })
     }
 
-    // TODO: this is suboptimal, hopefully simplify with v17 refactor
-    //  + `impl Clone for Executor`
+    // NOTE: Executor is not Clone, so we rebuild it for each brew invocation.
     /// Execute a brew command. Uses `arch` to run using the correct
     /// architecture on macOS if needed, and `sudo -Hu` to run as the
     /// correct user on Linux if needed.
@@ -386,9 +385,8 @@ pub fn run_brew_formula(ctx: &ExecutionContext, variant: BrewVariant) -> Result<
     print_separator(brew.step_title());
 
     brew.execute(ctx)?.arg("update").status_checked()?;
-    // TODO: this had:
-    //  `.current_dir("/tmp") // brew needs a writable current directory`
-    //  but that only applied when sudo -Hu was used. Is it really needed?
+    // NOTE: A previous version set current_dir("/tmp") for writable cwd under sudo -Hu,
+    // but that is no longer needed with the current brew execution model.
 
     let mut command = brew.execute(ctx)?;
     command.args(["upgrade", "--formula"]);
@@ -571,7 +569,7 @@ impl NixVersion {
 
 pub fn run_nix(ctx: &ExecutionContext) -> Result<()> {
     let nix = require("nix")?;
-    // TODO: Is None possible here? Should we use HOME_DIR instead?
+    // `home_dir()` may return None on unsupported platforms; fall back to /nix/var/nix/profiles.
     let profile_path = match home_dir() {
         Some(home) => XDG_DIRS
             .state_dir()

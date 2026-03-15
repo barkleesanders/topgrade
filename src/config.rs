@@ -25,7 +25,7 @@ use crate::sudo::SudoKind;
 use crate::terminal::print_warning;
 use crate::utils::string_prepend_str;
 
-// TODO: Add i18n to this. Tracking issue: https://github.com/topgrade-rs/topgrade/issues/859
+// NOTE: i18n for the example config is not yet implemented (https://github.com/topgrade-rs/topgrade/issues/859).
 pub static EXAMPLE_CONFIG: &str = include_str!("../config.example.toml");
 
 /// Topgrade's default log level.
@@ -960,8 +960,8 @@ impl ConfigFile {
 }
 
 // Command line arguments
-// TODO: i18n of clap currently not easily possible. Waiting for https://github.com/clap-rs/clap/issues/380
-// Tracking issue for i18n: https://github.com/topgrade-rs/topgrade/issues/859
+// NOTE: i18n of clap args requires upstream support (https://github.com/clap-rs/clap/issues/380).
+// Tracking issue: https://github.com/topgrade-rs/topgrade/issues/859
 #[derive(Parser, Debug)]
 #[command(name = "topgrade", version, styles = clap_cargo::style::CLAP_STYLING)]
 pub struct CommandLineArgs {
