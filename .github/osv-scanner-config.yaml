@@ -5,7 +5,6 @@ filters:
     - CRITICAL
   ecosystem: CARGO
 ignore:
-  # Example (remove or replace as needed):
-  # - id: RUSTSEC-0000-0000
-  #   reason: "Example ignore with expiry; replace with real items after triage"
-  #   expires: 2026-12-31
+  - id: RUSTSEC-2024-0370
+    reason: "proc-macro-error is unmaintained (not a vulnerability). Pulled transitively by merge v0.1 via merge_derive. Upgrading merge to v0.2 requires 110+ code changes due to removed Option<T> blanket impl. Tracked for future migration."
+    expires: 2027-03-14
