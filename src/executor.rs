@@ -331,8 +331,7 @@ pub enum ExecutorChild {
 impl CommandExt for Executor {
     type Child = ExecutorChild;
 
-    // TODO: It might be nice to make `output_checked_with` return something that has a
-    // variant for wet/dry runs.
+    // NOTE: `output_checked_with` could return a type with wet/dry variants for richer handling.
 
     fn output_checked_with(&mut self, succeeded: impl Fn(&Output) -> Result<(), ()>) -> Result<Output> {
         self.log_command();

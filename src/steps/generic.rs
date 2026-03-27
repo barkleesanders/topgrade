@@ -1945,7 +1945,7 @@ pub fn run_uv(ctx: &ExecutionContext) -> Result<Vec<UpdatedComponent>> {
     }
 
     // 2. Update the installed tools
-    // TODO: include this in `updated`
+    // NOTE: `uv tool upgrade --all` output is not yet included in `updated`
     ctx.execute(&uv_exec)
         .args(["tool", "upgrade", "--all"])
         .status_checked()?;
@@ -1985,7 +1985,7 @@ struct UvPythonVersion {
 
 impl UvPythonVersionData {
     /// Returns `None` when the version is undesirable, that is when any of the following conditions is met:
-    ///  - It's a pre-release (we don't care about pre-releases) (TODO: add an option to care about pre-releases)
+    ///  - It's a pre-release (we don't care about pre-releases)
     ///  - The variant is not default (we don't care about free-threaded python versions)
     fn normalize(self) -> Result<Option<UvPythonVersion>> {
         if self.variant != "default" {
@@ -2047,7 +2047,7 @@ pub fn run_uv_python(ctx: &ExecutionContext) -> Result<()> {
 
     debug!("Found latest version: {latest:?}");
 
-    // TODO: support multiple versions. Install new patch releases for each? Optionally install new minor release?
+    // NOTE: Currently only a single uv-managed Python installation is supported.
     let mut it = versions.iter().filter(|version| version.installed);
     let installed = &it
         .next()

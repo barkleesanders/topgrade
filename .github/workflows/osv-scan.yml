@@ -17,7 +17,6 @@ on:
 
 permissions:
   contents: read
-  security-events: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -25,6 +24,8 @@ concurrency:
 
 jobs:
   osv:
+    permissions:
+      security-events: write
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

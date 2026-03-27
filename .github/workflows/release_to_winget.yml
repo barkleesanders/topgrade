@@ -5,6 +5,9 @@ on:
     types: [ release-assets-built ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   publish:
     permissions:

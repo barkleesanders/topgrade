@@ -11,7 +11,7 @@ use color_eyre::eyre::Result;
 use color_eyre::eyre::{Context, OptionExt};
 use etcetera::base_strategy::BaseStrategy;
 use indexmap::IndexMap;
-use merge::Merge;
+use merge2::Merge;
 use regex::Regex;
 use regex_split::RegexSplit;
 use rust_i18n::t;
@@ -25,7 +25,7 @@ use crate::sudo::SudoKind;
 use crate::terminal::print_warning;
 use crate::utils::string_prepend_str;
 
-// TODO: Add i18n to this. Tracking issue: https://github.com/topgrade-rs/topgrade/issues/859
+// NOTE: i18n for the example config is not yet implemented (https://github.com/topgrade-rs/topgrade/issues/859).
 pub static EXAMPLE_CONFIG: &str = include_str!("../config.example.toml");
 
 /// Topgrade's default log level.
@@ -63,9 +63,9 @@ impl Default for AssumeYes {
 }
 
 /// Merge strategy: left takes precedence (first config wins)
-fn merge_assume_yes(left: &mut Option<AssumeYes>, right: Option<AssumeYes>) {
+fn merge_assume_yes(left: &mut Option<AssumeYes>, right: &mut Option<AssumeYes>) {
     if left.is_none() {
-        *left = right;
+        *left = right.take();
     }
 }
 
@@ -873,11 +873,11 @@ impl ConfigFile {
                 let include_contents = fs::read_to_string(&include).inspect_err(|_| {
                     error!("Unable to read {}", include.display());
                 })?;
-                let include_contents_parsed = toml::from_str(include_contents.as_str()).inspect_err(|_| {
+                let mut include_contents_parsed = toml::from_str(include_contents.as_str()).inspect_err(|_| {
                     error!("Failed to deserialize {}", include.display());
                 })?;
 
-                result.merge(include_contents_parsed);
+                result.merge(&mut include_contents_parsed);
             }
 
             path
@@ -919,7 +919,7 @@ impl ConfigFile {
                             }
                         };
                         match toml::from_str::<Self>(&include_contents) {
-                            Ok(include_parsed) => result.merge(include_parsed),
+                            Ok(mut include_parsed) => result.merge(&mut include_parsed),
                             Err(e) => {
                                 error!("Failed to deserialize {}: {e}", include_path.display(),);
                                 continue;
@@ -930,7 +930,7 @@ impl ConfigFile {
             }
 
             match toml::from_str::<Self>(contents) {
-                Ok(contents) => result.merge(contents),
+                Ok(mut contents) => result.merge(&mut contents),
                 Err(e) => error!("Failed to deserialize {}: {e}", config_path.display(),),
             }
         }
@@ -960,8 +960,8 @@ impl ConfigFile {
 }
 
 // Command line arguments
-// TODO: i18n of clap currently not easily possible. Waiting for https://github.com/clap-rs/clap/issues/380
-// Tracking issue for i18n: https://github.com/topgrade-rs/topgrade/issues/859
+// NOTE: i18n of clap args requires upstream support (https://github.com/clap-rs/clap/issues/380).
+// Tracking issue: https://github.com/topgrade-rs/topgrade/issues/859
 #[derive(Parser, Debug)]
 #[command(name = "topgrade", version, styles = clap_cargo::style::CLAP_STYLING)]
 pub struct CommandLineArgs {

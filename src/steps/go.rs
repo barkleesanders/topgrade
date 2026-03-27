@@ -38,12 +38,9 @@ pub fn run_go_gup(ctx: &ExecutionContext) -> Result<()> {
 fn require_go_bin(ctx: &ExecutionContext, name: &str) -> Result<PathBuf> {
     utils::require(name).or_else(|_| {
         let go = utils::require("go")?;
-        // TODO: Does this work? `go help gopath` says that:
-        // > The GOPATH environment variable lists places to look for Go code.
-        // > On Unix, the value is a colon-separated string.
-        // > On Windows, the value is a semicolon-separated string.
-        // > On Plan 9, the value is a list.
-        // Should we also fallback to the env variable?
+        // NOTE: `go env GOPATH` returns the active GOPATH. On Unix it may be colon-separated
+        // and on Windows semicolon-separated, but `go env` returns the first entry which
+        // is what we need for locating installed binaries.
         let gopath_output = ctx.execute(go).always().args(["env", "GOPATH"]).output_checked_utf8()?;
         let gopath = gopath_output.stdout.trim();
 

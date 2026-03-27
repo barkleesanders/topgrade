@@ -312,7 +312,7 @@ impl Sudo {
                 // going through a shell (which could be powershell) first.
                 // See: https://gerardog.github.io/gsudo/docs/usage
                 cmd.args(["-d", "cmd.exe", "/c", "rem"]);
-                // TODO: `gsudo cache on` starts a session with cached credentials and could replace the dummy `rem` invocation here when sudo_loop is enabled...
+                // NOTE: `gsudo cache on` could replace this dummy invocation when sudo_loop is enabled.
             }
             SudoKind::Pkexec => {
                 // I don't think this does anything; `pkexec` usually asks for
@@ -379,7 +379,7 @@ impl Sudo {
         // null sudo is very different, do separately
         if let SudoKind::Null = self.kind {
             if opts.login_shell {
-                // TODO: emulate running in a login shell with su/runuser
+                // Null sudo cannot emulate a login shell (would need su/runuser).
                 return Err(UnsupportedSudo {
                     sudo_kind: self.kind,
                     option: "login_shell",
@@ -387,7 +387,7 @@ impl Sudo {
                 .into());
             }
             if opts.user.is_some() {
-                // TODO: emulate running as a different user with su/runuser
+                // Null sudo cannot emulate running as a different user (would need su/runuser).
                 return Err(UnsupportedSudo {
                     sudo_kind: self.kind,
                     option: "user",
