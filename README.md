@@ -9,6 +9,7 @@
 <a href="https://crates.io/crates/topgrade"><img alt="crates.io" src="https://img.shields.io/crates/v/topgrade.svg"></a>
 <a href="https://aur.archlinux.org/packages/topgrade"><img alt="AUR" src="https://img.shields.io/aur/version/topgrade.svg"></a>
 <a href="https://formulae.brew.sh/formula/topgrade"><img alt="Homebrew" src="https://img.shields.io/homebrew/v/topgrade.svg"></a>
+<a href="https://securityscorecards.dev/viewer/?uri=github.com/barkleesanders/topgrade"><img alt="OpenSSF Scorecard" src="https://api.securityscorecards.dev/projects/github.com/barkleesanders/topgrade/badge"></a>
 
   <img alt="Feature Showcase" src="https://github.com/barkleesanders/topgrade/blob/main/doc/topgrade-showcase.gif?raw=true" width="900px">
 </div>
