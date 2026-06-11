@@ -2606,6 +2606,17 @@ pub fn run_claude_code(ctx: &ExecutionContext) -> Result<()> {
 
     let mut success = true;
     for plugin in &plugins {
+        // Plugins loaded straight from ~/.claude/skills carry the synthetic
+        // `@skills-dir` marketplace and have no marketplace backing —
+        // `claude plugin update` always refuses them ("cannot be updated"),
+        // which would fail the whole step. Skip them instead.
+        if plugin.id.ends_with("@skills-dir") {
+            debug!(
+                "Skipping plugin {}: skills-dir plugins have no marketplace backing",
+                plugin.id
+            );
+            continue;
+        }
         let mut cmd = ctx.execute(&claude);
         cmd.args(["plugin", "update", &plugin.id, "--scope", &plugin.scope]);
         if let Some(path) = &plugin.project_path {
