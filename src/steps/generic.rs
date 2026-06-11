@@ -2046,11 +2046,57 @@ pub fn run_uv(ctx: &ExecutionContext) -> Result<Vec<UpdatedComponent>> {
     }
 
     if ctx.config().cleanup() {
-        // Prune cache
-        ctx.execute(&uv_exec).args(["cache", "prune"]).status_checked()?;
+        // `uv cache prune` blocks indefinitely if another long-lived `uv` process
+        // is using the shared cache (for example, `uv run server.py` services).
+        // Skip cache cleanup in that case so the whole topgrade run can finish.
+        let uv_cache_lock = env::var_os("UV_CACHE_DIR")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| HOME_DIR.join(".cache/uv"))
+            .join(".lock");
+
+        if uv_cache_lock.exists() && uv_has_external_processes(ctx) {
+            print_warning(format!(
+                "Skipping uv cache prune: cache is in use by another uv process ({})",
+                uv_cache_lock.display()
+            ));
+        } else {
+            ctx.execute(&uv_exec).args(["cache", "prune"]).status_checked()?;
+        }
     }
 
     Ok(updated)
+}
+
+#[cfg(unix)]
+fn uv_has_external_processes(ctx: &ExecutionContext) -> bool {
+    let output = match ctx.execute("ps").always().args(["-axo", "command"]).output() {
+        Ok(ExecutorOutput::Wet(output)) => output,
+        Ok(ExecutorOutput::Dry) => return false,
+        Err(error) => {
+            warn!("Failed to inspect running uv processes before cache prune: {error}");
+            return false;
+        }
+    };
+
+    if !output.status.success() {
+        return false;
+    }
+
+    String::from_utf8_lossy(&output.stdout).lines().any(|line| {
+        let Some(command) = line.split_whitespace().next() else {
+            return false;
+        };
+
+        matches!(
+            Path::new(command).file_name().and_then(|name| name.to_str()),
+            Some("uv" | "uvx")
+        )
+    })
+}
+
+#[cfg(not(unix))]
+fn uv_has_external_processes(_ctx: &ExecutionContext) -> bool {
+    false
 }
 
 #[derive(Deserialize, Debug)]
