@@ -18,7 +18,7 @@ use crate::steps::os::archlinux;
 use crate::steps::os::archlinux::get_arch_package_manager;
 use crate::steps::unix::{NhSwitchArgs, can_nh_switch, nh_switch};
 use crate::sudo::SudoExecuteOpts;
-use crate::terminal::{print_info, print_separator, prompt_yesno};
+use crate::terminal::{print_info, print_separator, print_warning, prompt_yesno};
 use crate::utils::{PathExt, require, require_flatpak, require_one, which};
 
 static OS_RELEASE_PATH: &str = "/etc/os-release";
@@ -234,10 +234,6 @@ impl Distribution {
         if let Distribution::Arch = self {
             archlinux::show_pacnew();
         }
-    }
-
-    pub fn redhat_based(self) -> bool {
-        matches!(self, Distribution::CentOS | Distribution::Fedora)
     }
 }
 
@@ -1056,18 +1052,39 @@ pub fn run_fwupdmgr(ctx: &ExecutionContext) -> Result<()> {
             updmgr.arg("-y");
             updmgr.arg("--no-reboot-check");
         }
+        let result = updmgr.status_checked_with_codes(&[2]);
+        if result.is_ok() {
+            print_info(t!(
+                "Some firmware updates may require a reboot to take effect. Run `fwupdmgr get-updates` for details."
+            ));
+        }
+        result
     } else {
         updmgr.arg("get-updates");
-    }
-    let result = updmgr.status_checked_with_codes(&[2]);
 
-    if result.is_ok() && ctx.config().firmware_upgrade() {
-        print_info(t!(
-            "Some firmware updates may require a reboot to take effect. Run `fwupdmgr get-updates` for details."
-        ));
-    }
+        // Exit 0 from `fwupdmgr get-updates` means firmware updates are available.
+        // Exit 2 means no updates. When updates exist but `firmware_upgrade` is
+        // disabled, hint to the user that they can apply them manually.
+        let has_updates = std::cell::Cell::new(false);
+        updmgr.status_checked_with(|status| {
+            if status.success() {
+                has_updates.set(true);
+                Ok(())
+            } else if status.code() == Some(2) {
+                Ok(())
+            } else {
+                Err(())
+            }
+        })?;
 
-    result
+        if has_updates.get() {
+            print_warning(t!(
+                "fwupdmgr found firmware updates, but applying these is disabled in the config. Run 'fwupdmgr update' to update firmware manually."
+            ));
+        }
+
+        Ok(())
+    }
 }
 
 pub fn run_flatpak(ctx: &ExecutionContext) -> Result<()> {
@@ -1363,18 +1380,31 @@ pub fn run_cinnamon_spices_updater(ctx: &ExecutionContext) -> Result<()> {
 }
 
 pub fn run_protonplus_update(ctx: &ExecutionContext) -> Result<()> {
-    let protonplus = require("protonplus")?;
+    let (program, flatpak) = match require("protonplus") {
+        Ok(protonplus) => (protonplus, false),
+        Err(_) => {
+            require_flatpak(ctx, "com.vysp3r.ProtonPlus")?;
+            (require("flatpak")?, true)
+        }
+    };
+    let cmd = || {
+        let mut cmd = ctx.execute(&program);
+        if flatpak {
+            cmd.args(["run", "com.vysp3r.ProtonPlus"]);
+        }
+        cmd
+    };
 
-    if let Err(e) = ctx.execute(&protonplus).args(["invalidarg67"]).output_checked()
+    if let Err(e) = cmd().args(["invalidarg67"]).output_checked()
         && let Some(TopgradeError::ProcessFailedWithOutput(_, _, stderr)) = e.downcast_ref()
         && stderr.contains("This application can not open files")
     {
         return Err(SkipStep("Updates unsupported for ProtonPlus versions under v0.5.17".to_string()).into());
     }
 
-    print_separator("ProtonPlus");
+    print_separator(if flatpak { "ProtonPlus (Flatpak)" } else { "ProtonPlus" });
 
-    ctx.execute(&protonplus).args(["update", "all"]).status_checked()
+    cmd().args(["update", "all"]).status_checked()
 }
 
 pub fn run_plasmoid_updater(ctx: &ExecutionContext, system: bool, step_name: &str) -> Result<()> {

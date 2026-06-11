@@ -1,6 +1,6 @@
 use color_eyre::eyre::Context;
 use color_eyre::eyre::Result;
-use color_eyre::eyre::{OptionExt, eyre};
+use color_eyre::eyre::{OptionExt, bail, eyre};
 use jetbrains_toolbox_updater::{FindError, find_jetbrains_toolbox, update_jetbrains_toolbox};
 use regex::bytes::Regex;
 use rust_i18n::t;
@@ -13,13 +13,14 @@ use std::path::PathBuf;
 use std::sync::LazyLock;
 use std::{env, path::Path};
 use std::{fs, io::Write};
-use tempfile::tempfile_in;
+use tempfile::{tempdir, tempfile_in};
 use tracing::{debug, error, warn};
+use walkdir::WalkDir;
 
 use crate::HOME_DIR;
 use crate::command::{CommandExt, Utf8Output};
 use crate::execution_context::ExecutionContext;
-use crate::executor::ExecutorOutput;
+use crate::executor::{ExecutorChild, ExecutorOutput};
 use crate::output_changed_message;
 use crate::runner::UpdatedComponent;
 use crate::step::Step;
@@ -80,6 +81,9 @@ pub fn run_cargo_update(ctx: &ExecutionContext) -> Result<()> {
     }
     if ctx.config().cargo_update_quiet() {
         command.arg("--quiet");
+    }
+    if ctx.config().cargo_update_locked() {
+        command.arg("--locked");
     }
     command.status_checked()?;
 
@@ -264,6 +268,14 @@ pub fn run_haxelib_update(ctx: &ExecutionContext) -> Result<()> {
     };
 
     command.arg("update").status_checked()
+}
+
+pub fn run_getnf_update(ctx: &ExecutionContext) -> Result<()> {
+    let getnf = require("getnf")?;
+
+    print_separator("getnf");
+
+    ctx.execute(getnf).args(["-U"]).status_checked()
 }
 
 pub fn run_sheldon(ctx: &ExecutionContext) -> Result<()> {
@@ -509,7 +521,7 @@ pub fn run_gcloud_components_update(ctx: &ExecutionContext) -> Result<()> {
     std::io::stderr().write_all(stderr.as_bytes())?;
 
     if !output.status.success() {
-        return Err(eyre!("gcloud component update failed"));
+        bail!("gcloud component update failed");
     }
 
     Ok(())
@@ -741,6 +753,20 @@ pub fn run_windsurf_extensions_update(ctx: &ExecutionContext) -> Result<()> {
 
 pub fn run_antigravity_extensions_update(ctx: &ExecutionContext) -> Result<()> {
     run_vscode_compatible(VSCodeVariant::Antigravity, ctx)
+}
+
+pub fn run_pi(ctx: &ExecutionContext) -> Result<()> {
+    let pi = require("pi")?;
+    let temp_dir = tempdir()?;
+
+    print_separator("pi");
+
+    // `pi` reads project-local settings from `./.pi/settings.json`, so run
+    // from a fresh directory to restrict this step to global packages.
+    ctx.execute(pi)
+        .current_dir(temp_dir.path())
+        .arg("update")
+        .status_checked()
 }
 
 pub fn run_pipx_update(ctx: &ExecutionContext) -> Result<()> {
@@ -1108,9 +1134,18 @@ pub fn run_tlmgr_update(ctx: &ExecutionContext) -> Result<()> {
 
 pub fn run_chezmoi_update(ctx: &ExecutionContext) -> Result<()> {
     let chezmoi = require("chezmoi")?;
-    HOME_DIR.join(".local/share/chezmoi").require()?;
 
-    let mut cmd = ctx.execute(chezmoi);
+    PathBuf::from(
+        ctx.execute(&chezmoi)
+            .always()
+            .arg("source-path")
+            .output_checked_utf8()?
+            .stdout
+            .trim(),
+    )
+    .require()?;
+
+    let mut cmd = ctx.execute(&chezmoi);
 
     print_separator("chezmoi");
 
@@ -1291,26 +1326,24 @@ pub fn run_powershell(ctx: &ExecutionContext) -> Result<()> {
 
     print_separator(t!("Powershell Modules Update"));
 
-    let mut cmd = "Update-Module".to_string();
+    // For PowerShell Core, run without sudo (defaults to CurrentUser scope).
+    // For Windows PowerShell, use sudo (defaults to AllUsers scope).
+    let use_sudo = !powershell.is_pwsh();
 
-    if ctx.config().verbose() {
-        cmd.push_str(" -Verbose");
+    if !powershell.has_command(ctx, "Update-Module", use_sudo)? {
+        let message = t!(
+            "PowerShellGet Update-Module is unavailable or could not be loaded. Skipping PowerShell module updates."
+        )
+        .to_string();
+        print_warning(&message);
+        return Err(SkipStep(message).into());
     }
-    if ctx.config().yes(Step::Powershell) {
-        cmd.push_str(" -Force");
-    }
+
+    let cmd = powershell_update_modules_command(ctx.config().verbose(), ctx.config().yes(Step::Powershell));
 
     println!("{}", t!("Updating modules..."));
 
-    let result = if powershell.is_pwsh() {
-        // For PowerShell Core, run Update-Module without sudo since it defaults to CurrentUser scope
-        // and Update-Module updates all modules regardless of their original installation scope
-        powershell.build_command(ctx, &cmd, false)?.status_checked()
-    } else {
-        // For (Windows) PowerShell, use sudo since it defaults to AllUsers scope
-        // and may need administrator privileges
-        powershell.build_command(ctx, &cmd, true)?.status_checked()
-    };
+    let result = powershell.build_command(ctx, &cmd, use_sudo)?.status_checked();
 
     // When --cleanup is specified, remove old versions of installed modules
     if ctx.config().cleanup() {
@@ -1321,17 +1354,59 @@ pub fn run_powershell(ctx: &ExecutionContext) -> Result<()> {
             Select-Object -Skip 1 | \
             Uninstall-Module -Force -ErrorAction SilentlyContinue \
         }";
-        let cleanup_result = if powershell.is_pwsh() {
-            powershell.build_command(ctx, cleanup_cmd, false)?.status_checked()
-        } else {
-            powershell.build_command(ctx, cleanup_cmd, true)?.status_checked()
-        };
-        if let Err(e) = cleanup_result {
+        if let Err(e) = powershell.build_command(ctx, cleanup_cmd, use_sudo)?.status_checked() {
             debug!("PowerShell module cleanup failed (non-fatal): {:?}", e);
         }
     }
 
     result
+}
+
+fn powershell_update_modules_command(verbose: bool, assume_yes: bool) -> String {
+    let mut cmd = "$params = @{};".to_string();
+    cmd.push_str(" $updateModule = Get-Command Update-Module -ErrorAction Stop;");
+
+    if verbose {
+        cmd.push_str(" $params['Verbose'] = $true;");
+    }
+    if assume_yes {
+        // Avoid -Force here: PowerShellGet uses it to reinstall already-current modules,
+        // which can lock PackageManagement in the running Windows PowerShell session.
+        cmd.push_str(" $params['Confirm'] = $false;");
+        cmd.push_str(
+            " if ($updateModule.Parameters.ContainsKey('AcceptLicense')) { $params['AcceptLicense'] = $true; }",
+        );
+    }
+
+    cmd.push_str(" & $updateModule @params");
+    cmd
+}
+
+#[cfg(test)]
+mod powershell_tests {
+    use super::powershell_update_modules_command;
+
+    #[test]
+    fn assume_yes_suppresses_confirmation_without_force() {
+        let cmd = powershell_update_modules_command(false, true);
+
+        assert!(cmd.contains("$params['Confirm'] = $false"));
+        assert!(cmd.contains("$updateModule.Parameters.ContainsKey('AcceptLicense')"));
+        assert!(cmd.contains("$params['AcceptLicense'] = $true"));
+        assert!(cmd.contains("Get-Command Update-Module -ErrorAction Stop"));
+        assert!(cmd.contains("& $updateModule @params"));
+        assert!(!cmd.contains("-Force"));
+        assert!(!cmd.contains("exit 0"));
+        assert!(!cmd.contains("topgradeUpdateModule"));
+    }
+
+    #[test]
+    fn verbose_sets_verbose_parameter() {
+        let cmd = powershell_update_modules_command(true, false);
+
+        assert!(cmd.contains("$params['Verbose'] = $true"));
+        assert!(!cmd.contains("AcceptLicense"));
+    }
 }
 
 enum Hx {
@@ -1610,6 +1685,21 @@ pub fn run_freshclam(ctx: &ExecutionContext) -> Result<()> {
         ).to_string()).into());
     }
 
+    #[cfg(target_os = "linux")]
+    if let Ok(systemctl) = require("systemctl") {
+        for unit in ["clamav-freshclam.service", "clamav-freshclam-once.timer"] {
+            if ctx
+                .execute(&systemctl)
+                .always()
+                .args(["is-active", "--quiet", unit])
+                .status_checked()
+                .is_ok()
+            {
+                return Err(SkipStep("ClamAV freshclam autoupdate is active via systemd".to_string()).into());
+            }
+        }
+    }
+
     print_separator(t!("Update ClamAV Database(FreshClam)"));
 
     let output = ctx.execute(&freshclam).output()?;
@@ -1737,19 +1827,19 @@ pub fn run_poetry(ctx: &ExecutionContext) -> Result<()> {
 
         let pos = match data.windows(4).rposition(|b| b == b"PK\x05\x06") {
             Some(i) => i,
-            None => return Err(eyre!("Not a ZIP archive")),
+            None => bail!("Not a ZIP archive"),
         };
 
         let cdr_size = match data.get(pos + 12..pos + 16) {
             Some(b) => u32::from_le_bytes(b.try_into().unwrap()) as usize,
-            None => return Err(eyre!("Invalid CDR size")),
+            None => bail!("Invalid CDR size"),
         };
         let cdr_offset = match data.get(pos + 16..pos + 20) {
             Some(b) => u32::from_le_bytes(b.try_into().unwrap()) as usize,
-            None => return Err(eyre!("Invalid CDR offset")),
+            None => bail!("Invalid CDR offset"),
         };
         if pos < cdr_size + cdr_offset {
-            return Err(eyre!("Invalid ZIP archive"));
+            bail!("Invalid ZIP archive");
         }
         let arc_pos = pos - cdr_size - cdr_offset;
         match data[..arc_pos].windows(2).rposition(|b| b == b"#!") {
@@ -1914,7 +2004,7 @@ pub fn run_uv(ctx: &ExecutionContext) -> Result<Vec<UpdatedComponent>> {
 
             // And, if self update failed, fail the step as well.
             if !output.status.success() {
-                return Err(eyre!("uv self update failed"));
+                bail!("uv self update failed");
             }
 
             self_output = Some(output);
@@ -2247,54 +2337,17 @@ pub fn run_ldcup(ctx: &ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn run_ollama_pull(ctx: &ExecutionContext) -> Result<()> {
-    let ollama = require("ollama")?;
-
-    // Check if the Ollama server is running before printing the separator.
-    // `ollama list` fails with "could not connect" if the server is not active.
-    let probe = ctx.execute(&ollama).always().arg("list").output()?;
-    let probe = match probe {
-        ExecutorOutput::Wet(output) => output,
-        ExecutorOutput::Dry => {
-            print_separator("Ollama");
-            return Ok(());
-        }
-    };
-    if !probe.status.success() {
-        let stderr = String::from_utf8_lossy(&probe.stderr);
-        if stderr.contains("could not connect") || stderr.contains("connection refused") {
-            return Err(
-                SkipStep("Ollama server is not running; skipping (start it with 'ollama serve')".to_string()).into(),
-            );
-        }
-        // Some other error — fall through and let the existing code report it.
-    }
-
-    print_separator("Ollama");
-
-    let ollama_list_stdout = String::from_utf8_lossy(&probe.stdout).to_string();
-    // trim the last new-line character, or `stdout.split('\n')` would give us an empty string
-    let ollama_list_stdout_trimmed = ollama_list_stdout.trim_end_matches('\n');
-    // skip(1) to skip the first `NAME ID SIZE MODIFIED` header line
-    let model_lines = ollama_list_stdout_trimmed.split('\n').skip(1);
-    for model_line in model_lines {
-        let mut columns = model_line.split_whitespace();
-        let model_name = columns
-            .next()
-            .expect("The format of `ollama list` output has changed, file an issue to Topgrade!");
-        assert!(model_name.contains(':'), "a tag should be included in the model name");
-
-        ctx.execute(&ollama).args(["pull", model_name]).status_checked()?;
-    }
-
-    Ok(())
-}
-
 pub fn run_jetbrains_toolbox(ctx: &ExecutionContext) -> Result<()> {
     let installation = find_jetbrains_toolbox();
     match installation {
         Err(FindError::NotFound) => {
             // Skip
+            Err(SkipStep(format!("{}", t!("No JetBrains Toolbox installation found"))).into())
+        }
+        Err(FindError::NoDesktopFile(_)) => {
+            // Skip: the JetBrains/Toolbox directory exists but no Toolbox binary or desktop
+            // file is present. This can happen when Toolbox running on another machine remotely
+            // installed an IDE here, leaving the directory behind without a local Toolbox.
             Err(SkipStep(format!("{}", t!("No JetBrains Toolbox installation found"))).into())
         }
         Err(FindError::UnsupportedOS(os)) => {
@@ -2358,10 +2411,10 @@ fn run_jetbrains_ide_generic<const IS_JETBRAINS: bool>(ctx: &ExecutionContext, b
             .code()
             .ok_or_eyre("Failed to get status code; was killed with signal")?;
         if status_code != 1 {
-            return Err(eyre!(
+            bail!(
                 "Expected status code 1 ('Only one instance of <IDE> can be run at a time.'), but found status code {}. Output: {output:?}",
                 status_code
-            ));
+            );
         }
         // Don't crash, but don't be silent either
         warn!("{name} is already running, can't update it now.");
@@ -2521,11 +2574,50 @@ pub fn run_typst(ctx: &ExecutionContext) -> Result<()> {
 }
 
 pub fn run_claude_code(ctx: &ExecutionContext) -> Result<()> {
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct ClaudePlugin {
+        id: String,
+        scope: String,
+        #[serde(default)]
+        project_path: Option<PathBuf>,
+    }
+
     let claude = require("claude")?;
 
     print_separator("Claude Code");
 
-    ctx.execute(claude).arg("update").status_checked()
+    ctx.execute(&claude).arg("update").status_checked()?;
+
+    ctx.execute(&claude)
+        .args(["plugin", "marketplace", "update"])
+        .status_checked()?;
+
+    let output = ctx
+        .execute(&claude)
+        .args(["plugin", "list", "--json"])
+        .output_checked_utf8()?;
+    let plugins: Vec<ClaudePlugin> = serde_json::from_str(&output.stdout).wrap_err_with(|| {
+        output_changed_message!(
+            "claude plugin list --json",
+            "json output is invalid or does not match expected structure"
+        )
+    })?;
+
+    let mut success = true;
+    for plugin in &plugins {
+        let mut cmd = ctx.execute(&claude);
+        cmd.args(["plugin", "update", &plugin.id, "--scope", &plugin.scope]);
+        if let Some(path) = &plugin.project_path {
+            cmd.current_dir(path);
+        }
+        if let Err(e) = cmd.status_checked() {
+            error!("Updating plugin {} failed: {e}", plugin.id);
+            success = false;
+        }
+    }
+
+    if success { Ok(()) } else { Err(eyre!(StepFailed)) }
 }
 
 pub fn run_falconf(ctx: &ExecutionContext) -> Result<()> {
@@ -2668,5 +2760,134 @@ pub fn run_skills(ctx: &ExecutionContext) -> Result<()> {
 
     print_separator("Skills");
 
-    ctx.execute(npx).args(["skills", "update"]).status_checked()
+    let mut command = ctx.execute(npx);
+
+    if ctx.config().yes(Step::Skills) {
+        command.arg("--yes");
+    }
+
+    command.args(["skills", "update", "--global"]);
+
+    command.status_checked()
+}
+
+fn ollama_serve(ctx: &ExecutionContext, ollama: &Path) -> Result<ExecutorChild> {
+    ctx.execute(ollama)
+        .arg("serve")
+        .stdin(std::process::Stdio::null())
+        .spawn()
+        .context("Failed to start Ollama server")
+}
+
+fn ollama_manifests_path() -> PathBuf {
+    env::var_os("OLLAMA_MODELS")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| HOME_DIR.join(".ollama/models"))
+        .join("manifests/registry.ollama.ai")
+}
+
+struct OllamaModel {
+    name: String,
+    manifest_path: PathBuf,
+}
+
+fn ollama_list_models() -> impl Iterator<Item = OllamaModel> {
+    let manifests = ollama_manifests_path();
+
+    WalkDir::new(&manifests)
+        .min_depth(3)
+        .max_depth(3)
+        .into_iter()
+        .filter_map(move |entry| {
+            let entry = entry.ok()?;
+            if !entry.file_type().is_file() {
+                return None;
+            }
+
+            let path = entry.path();
+            let tag = path.file_name()?.to_string_lossy();
+            let name = path.parent()?.file_name()?.to_string_lossy();
+            let namespace = path.parent()?.parent()?.file_name()?.to_string_lossy();
+
+            Some(OllamaModel {
+                name: if namespace == "library" {
+                    format!("{name}:{tag}")
+                } else {
+                    format!("{namespace}/{name}:{tag}")
+                },
+                manifest_path: path.to_path_buf(),
+            })
+        })
+}
+
+#[derive(Deserialize)]
+struct OllamaManifest {
+    layers: Vec<OllamaLayer>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct OllamaLayer {
+    media_type: String,
+    #[serde(default)]
+    from: Option<String>,
+}
+
+// Locally created model manifests have a `from` field on their model layers
+fn is_local_ollama_model(manifest_path: &Path) -> bool {
+    let Ok(content) = fs::read_to_string(manifest_path) else {
+        return false;
+    };
+    let Ok(manifest) = serde_json::from_str::<OllamaManifest>(&content) else {
+        return false;
+    };
+    manifest
+        .layers
+        .iter()
+        .any(|l| l.media_type == "application/vnd.ollama.image.model" && l.from.is_some())
+}
+
+pub fn run_ollama_pull(ctx: &ExecutionContext) -> Result<()> {
+    let ollama = require("ollama")?;
+
+    let mut remote_models = ollama_list_models()
+        .filter(|m| !is_local_ollama_model(&m.manifest_path))
+        .peekable();
+    if remote_models.peek().is_none() {
+        return Err(SkipStep("No Ollama models to pull".to_string()).into());
+    }
+
+    print_separator("Ollama");
+
+    let mut server: Option<ExecutorChild> = None;
+    if let ExecutorOutput::Wet(out) = ctx.execute(&ollama).always().args(["list"]).output()?
+        && String::from_utf8_lossy(&out.stderr).contains("could not connect")
+        && !ctx.run_type().dry()
+    {
+        debug!("Ollama server not running, starting temporary server");
+        server = Some(ollama_serve(ctx, &ollama)?);
+        // wait max 2 seconds for server to start
+        for _ in 0..10 {
+            std::thread::sleep(std::time::Duration::from_millis(200));
+            if ctx.execute(&ollama).args(["list"]).status_checked().is_ok() {
+                break;
+            }
+        }
+    }
+
+    let mut pull_result = Ok(());
+    for model in remote_models {
+        if let Err(e) = ctx.execute(&ollama).args(["pull", &model.name]).status_checked() {
+            pull_result = Err(e);
+            break;
+        }
+    }
+
+    // kill temporary Ollama server - must run, don't add early returns before this
+    if let Some(ExecutorChild::Wet(mut child)) = server {
+        let _ = child.kill();
+        let _ = child.wait();
+    }
+
+    pull_result
 }

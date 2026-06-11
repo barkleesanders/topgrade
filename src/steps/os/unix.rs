@@ -1,6 +1,6 @@
 use color_eyre::eyre::Context;
 use color_eyre::eyre::Result;
-use color_eyre::eyre::{OptionExt, eyre};
+use color_eyre::eyre::{OptionExt, bail, eyre};
 use etcetera::BaseStrategy;
 use ini::Ini;
 use regex::Regex;
@@ -520,7 +520,7 @@ impl NixVersion {
             .to_string();
 
         if version_string.is_empty() {
-            return Err(eyre!("`nix --version` output was empty"));
+            bail!("`nix --version` output was empty");
         }
 
         Ok(Self { version_string })
@@ -961,7 +961,7 @@ pub fn run_mise(ctx: &ExecutionContext) -> Result<()> {
         .code()
         .ok_or_eyre("Couldn't get status code (terminated by signal)")?;
     let stderr = std::str::from_utf8(&output.stderr).wrap_err("Expected output to be valid UTF-8")?;
-    if stderr.contains("mise is installed via a package manager") && status_code == 1 {
+    if stderr.contains("cannot update") && status_code == 1 {
         debug!("Mise self-update not available")
     } else {
         // Write the output
@@ -982,6 +982,22 @@ pub fn run_mise(ctx: &ExecutionContext) -> Result<()> {
 
     if ctx.config().mise_bump() {
         cmd.arg("--bump");
+    }
+
+    if ctx.config().mise_silent() {
+        cmd.arg("--silent");
+    }
+
+    if ctx.config().mise_quiet() {
+        cmd.arg("--quiet");
+    }
+
+    if ctx.config().mise_verbose() {
+        cmd.arg("--verbose");
+    }
+
+    if ctx.config().yes(Step::Mise) {
+        cmd.arg("--yes");
     }
 
     if ctx.config().mise_jobs() != 4 {
@@ -1194,13 +1210,18 @@ pub fn reboot(ctx: &ExecutionContext) -> Result<()> {
         return ctx.execute(systemctl).arg("reboot").status_checked();
     }
 
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    if let Ok(()) = system_shutdown::reboot() {
+        return Ok(());
+    }
+
     match ctx.sudo() {
         Some(sudo) => sudo.execute(ctx, "reboot")?.status_checked(),
         None => ctx.execute("reboot").status_checked(),
     }
 }
 
-pub fn poweroff(ctx: &ExecutionContext) -> Result<()> {
+pub fn shutdown(ctx: &ExecutionContext) -> Result<()> {
     // Prefer `systemctl poweroff` on systemd-based systems
     if Path::new("/run/systemd/system").exists()
         && let Ok(systemctl) = require("systemctl")
@@ -1208,8 +1229,13 @@ pub fn poweroff(ctx: &ExecutionContext) -> Result<()> {
         return ctx.execute(systemctl).arg("poweroff").status_checked();
     }
 
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    if let Ok(()) = system_shutdown::shutdown() {
+        return Ok(());
+    }
+
     match ctx.sudo() {
-        Some(sudo) => sudo.execute(ctx, "poweroff")?.status_checked(),
-        None => ctx.execute("poweroff").status_checked(),
+        Some(sudo) => sudo.execute(ctx, "shutdown")?.args(["now"]).status_checked(),
+        None => ctx.execute("shutdown").args(["now"]).status_checked(),
     }
 }

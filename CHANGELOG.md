@@ -7,6 +7,95 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.6.1](https://github.com/topgrade-rs/topgrade/compare/v17.5.1...v17.6.1) - 2026-06-10
+
+### Added
+
+- *(vim)* add opt-in vim.pack pruning ([#2044](https://github.com/topgrade-rs/topgrade/pull/2044))
+
+### Fixed
+
+- *(needrestart)* skip if hooks already run it ([#2066](https://github.com/topgrade-rs/topgrade/pull/2066))
+- *(tmux)* update path to tpm update script ([#2050](https://github.com/topgrade-rs/topgrade/pull/2050))
+- *(jetbrains-toolbox)* skip step when Toolbox is not installed, but remotely managed IDEs are installed ([#2038](https://github.com/topgrade-rs/topgrade/pull/2038))
+- *(jetbrains-toolbox)* fix breakage on new Toolbox version by switching to different update finished line ([#2039](https://github.com/topgrade-rs/topgrade/pull/2039))
+
+## [17.5.1](https://github.com/topgrade-rs/topgrade/compare/v17.5.0...v17.5.1) - 2026-05-20
+
+### Fixed
+
+- *(install-release)* remove ir alias to avoid conflict with mono-mdk ([#2036](https://github.com/topgrade-rs/topgrade/pull/2036))
+- *(powershell)* handle unavailable Update-Module ([#1993](https://github.com/topgrade-rs/topgrade/pull/1993))
+
+## [17.5.0](https://github.com/topgrade-rs/topgrade/compare/v17.4.0...v17.5.0) - 2026-05-15
+
+### Added
+
+- *(step)* add install-release ([#2011](https://github.com/topgrade-rs/topgrade/pull/2011))
+- *(vim)* support neovim vim.pack updates ([#2010](https://github.com/topgrade-rs/topgrade/pull/2010))
+- *(protonplus)* support flatpak installation of ProtonPlus ([#2006](https://github.com/topgrade-rs/topgrade/pull/2006))
+- *(mise)* add options for quiet, silent, verbose, and add assume_yes support ([#1990](https://github.com/topgrade-rs/topgrade/pull/1990))
+- *(clamav)* don't run if systemd autoupdater is active ([#1988](https://github.com/topgrade-rs/topgrade/pull/1988))
+- passwordless reboot and shutdown using `system_shutdown` ([#1985](https://github.com/topgrade-rs/topgrade/pull/1985))
+- *(cargo)* add locked option for cargo install-update ([#1980](https://github.com/topgrade-rs/topgrade/pull/1980))
+
+### Fixed
+
+- *(terminal)* only accept actual keypresses in menus ([#2020](https://github.com/topgrade-rs/topgrade/pull/2020))
+- *(oh-my-bash)* fix oh-my-bash failing in non-bash shells ([#2014](https://github.com/topgrade-rs/topgrade/pull/2014))
+
+## [17.4.0](https://github.com/topgrade-rs/topgrade/compare/v17.3.0...v17.4.0) - 2026-04-21
+
+### Added
+
+- *(step)* support Ollama model pulling ([#1968](https://github.com/topgrade-rs/topgrade/pull/1968))
+- *(step)* add support for pi ([#1975](https://github.com/topgrade-rs/topgrade/pull/1975))
+- *(firmware)* hint user to run fwupdmgr update when updates are available ([#1957](https://github.com/topgrade-rs/topgrade/pull/1957))
+- *(skills)* pass --global([#1952](https://github.com/topgrade-rs/topgrade/pull/1952))
+- *(step)* add vite+ ([#1953](https://github.com/topgrade-rs/topgrade/pull/1953))
+
+### Fixed
+
+- *(mise)* handle all self-update errors ([#1978](https://github.com/topgrade-rs/topgrade/pull/1978))
+- *(chezmoi)* support non-standard `sourceDir` ([#1971](https://github.com/topgrade-rs/topgrade/pull/1971))
+- *(sparkle)* correct CLI argument usage ([#1912](https://github.com/topgrade-rs/topgrade/pull/1912))
+
+## [17.3.0](https://github.com/topgrade-rs/topgrade/compare/v17.2.1...v17.3.0) - 2026-04-09
+
+### Added
+
+- *(config)* add custom step order ([#1940](https://github.com/topgrade-rs/topgrade/pull/1940))
+- *(archlinux)* add shelly package manager ([#1941](https://github.com/topgrade-rs/topgrade/pull/1941))
+- *(claude)* update non-user scope plugins ([#1938](https://github.com/topgrade-rs/topgrade/pull/1938))
+- add sudo loop ([#1803](https://github.com/topgrade-rs/topgrade/pull/1803))
+- *(gup)* add exclude config ([#1911](https://github.com/topgrade-rs/topgrade/pull/1911))
+- *(step)* add tpack ([#1898](https://github.com/topgrade-rs/topgrade/pull/1898))
+
+### Fixed
+
+- *(skills)* skip npx update prompt with assume_yes ([#1920](https://github.com/topgrade-rs/topgrade/pull/1920))
+- do not continue to next step when ctrl+c is pressed at retry prompt ([#1915](https://github.com/topgrade-rs/topgrade/pull/1915))
+- *(sudo)* ignore set_home for run0 ([#1905](https://github.com/topgrade-rs/topgrade/pull/1905))
+
+## [17.2.1](https://github.com/topgrade-rs/topgrade/compare/v17.2.0...v17.2.1) - 2026-04-01
+Rerelease of 17.2.0 because of CD mishap
+
+## [17.2.0](https://github.com/topgrade-rs/topgrade/compare/v17.1.0...v17.2.0) - 2026-03-30
+
+### Added
+
+- *(claude code)* add plugin updates ([#1879](https://github.com/topgrade-rs/topgrade/pull/1879))
+- *(step)* add getnf ([#1874](https://github.com/topgrade-rs/topgrade/pull/1874))
+- don't set TOPGRADE_YES and TOPGRADE_CLEANUP at all instead of setting to 0 ([#1876](https://github.com/topgrade-rs/topgrade/pull/1876))
+- expose TOPGRADE_YES and TOPGRADE_CLEANUP env vars for custom commands ([#1869](https://github.com/topgrade-rs/topgrade/pull/1869))
+- *(step)* add Microsoft Office auto update on macOS ([#1865](https://github.com/topgrade-rs/topgrade/pull/1865))
+- *(step)* add windsurf ([#1859](https://github.com/topgrade-rs/topgrade/pull/1859))
+
+### Fixed
+
+- *(deb-get)* skip redundant apt operations ([#1855](https://github.com/topgrade-rs/topgrade/pull/1855))
+- *(protonplus)* fix display name capitalization ([#1846](https://github.com/topgrade-rs/topgrade/pull/1846))
+
 ## [17.1.0](https://github.com/topgrade-rs/topgrade/compare/v17.0.0...v17.1.0) - 2026-03-11
 
 ### Added

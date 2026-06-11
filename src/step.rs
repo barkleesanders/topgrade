@@ -140,6 +140,7 @@ pub enum Step {
     Gcloud,
     Gearlever,
     Gem,
+    Getnf,
     Ghcup,
     GitRepos,
     GithubCliExtensions,
@@ -187,6 +188,7 @@ pub enum Step {
     Micro,
     Micromamba,
     MicrosoftAutoUpdate,
+    MicrosoftOffice,
     MicrosoftStore,
     Miktex,
     Mise,
@@ -201,6 +203,7 @@ pub enum Step {
     Pacdef,
     Pacstall,
     Pearl,
+    Pi,
     Pip3,
     PipReview,
     PipReviewLocal,
@@ -246,12 +249,14 @@ pub enum Step {
     Tlmgr,
     Tmux,
     Toolbx,
+    Tpack,
     Typst,
     Uv,
     UvPython,
     Vagrant,
     Vcpkg,
     Vim,
+    VitePlus,
     VoltaPackages,
     Vscode,
     VscodeInsiders,
@@ -440,6 +445,7 @@ impl Step {
                 runner.execute(*self, "Gear Lever", || linux::run_gearlever(ctx))?
             }
             Gem => runner.execute(*self, "gem", || generic::run_gem(ctx))?,
+            Getnf => runner.execute(*self, "getnf", || generic::run_getnf_update(ctx))?,
             Ghcup => runner.execute(*self, "ghcup", || generic::run_ghcup_update(ctx))?,
             GitRepos => runner.execute(*self, "Git Repositories", || git::run_git_pull_or_fetch(ctx))?,
             GithubCliExtensions => runner.execute(*self, "GitHub CLI Extensions", || {
@@ -556,6 +562,11 @@ impl Step {
                 #[cfg(target_os = "macos")]
                 runner.execute(*self, "Microsoft AutoUpdate", || macos::run_msupdate(ctx))?
             }
+            MicrosoftOffice =>
+            {
+                #[cfg(target_os = "macos")]
+                runner.execute(*self, "Microsoft Office", || macos::run_microsoft_office(ctx))?
+            }
             MicrosoftStore =>
             {
                 #[cfg(windows)]
@@ -607,6 +618,7 @@ impl Step {
                 #[cfg(unix)]
                 runner.execute(*self, "pearl", || unix::run_pearl(ctx))?
             }
+            Pi => runner.execute(*self, "pi", || generic::run_pi(ctx))?,
             Pip3 => runner.execute(*self, "pip3", || generic::run_pip3_update(ctx))?,
             PipReview => runner.execute(*self, "pip-review", || generic::run_pip_review_update(ctx))?,
             PipReviewLocal => runner.execute(*self, "pip-review (local)", || {
@@ -796,6 +808,11 @@ impl Step {
                 #[cfg(target_os = "linux")]
                 runner.execute(*self, "toolbx", || toolbx::run_toolbx(ctx))?
             }
+            Tpack =>
+            {
+                #[cfg(unix)]
+                runner.execute(*self, "tpack", || tmux::run_tpack(ctx))?
+            }
             Typst => runner.execute(*self, "Typst", || generic::run_typst(ctx))?,
             Uv => runner.execute_with_updated(*self, "uv", || generic::run_uv(ctx))?,
             UvPython => runner.execute(*self, "uv python", || generic::run_uv_python(ctx))?,
@@ -818,6 +835,7 @@ impl Step {
                 runner.execute(*self, "The Ultimate vimrc", || vim::upgrade_ultimate_vimrc(ctx))?;
                 runner.execute(*self, "voom", || vim::run_voom(ctx))?
             }
+            VitePlus => runner.execute(*self, "viteplus", || node::run_viteplus_upgrade(ctx))?,
             VoltaPackages => runner.execute(*self, "volta packages", || node::run_volta_packages_upgrade(ctx))?,
             Vscode => runner.execute(*self, "Visual Studio Code extensions", || {
                 generic::run_vscode_extensions_update(ctx)
@@ -877,8 +895,6 @@ impl Step {
 
 #[allow(clippy::too_many_lines)]
 pub(crate) fn default_steps() -> Vec<Step> {
-    // For now, SelfRenamer and SelfUpdate isn't included as they're ran before the other non-steps (pre-commands, sudo, etc)
-
     use Step::*;
     // Could probably have a smaller starting capacity, but this at least ensures only 2 allocations:
     // initial and shrink
@@ -910,6 +926,7 @@ pub(crate) fn default_steps() -> Vec<Step> {
         Sparkle,
         Mas,
         MicrosoftAutoUpdate,
+        MicrosoftOffice,
         System,
     ]);
 
@@ -928,6 +945,16 @@ pub(crate) fn default_steps() -> Vec<Step> {
     #[cfg(target_os = "linux")]
     steps.extend_from_slice(&[
         System,
+        MicrosoftStore,
+        BrewFormula,
+        BrewCask,
+        Macports,
+        Xcodes,
+        Sparkle,
+        Mas,
+        MicrosoftOffice,
+        Pkg,
+        Audit,
         ConfigUpdate,
         AM,
         AppMan,
@@ -944,8 +971,6 @@ pub(crate) fn default_steps() -> Vec<Step> {
         Restarts,
         Flatpak,
         Gearlever,
-        BrewFormula,
-        BrewCask,
         Lure,
         Waydroid,
         AutoCpufreq,
@@ -971,6 +996,7 @@ pub(crate) fn default_steps() -> Vec<Step> {
         BunPackages,
         Shell,
         Tmux,
+        Tpack,
         Pearl,
         Adless,
         #[cfg(not(any(target_os = "macos", target_os = "android")))]
@@ -981,18 +1007,7 @@ pub(crate) fn default_steps() -> Vec<Step> {
         Maza,
         Hyprpm,
         Atuin,
-    ]);
-
-    #[cfg(not(any(
-        target_os = "freebsd",
-        target_os = "openbsd",
-        target_os = "netbsd",
-        target_os = "dragonfly"
-    )))]
-    steps.push(Atom);
-
-    // The following update function should be executed on all OSes.
-    steps.extend_from_slice(&[
+        Atom,
         Fossil,
         Elan,
         Rye,
@@ -1008,6 +1023,7 @@ pub(crate) fn default_steps() -> Vec<Step> {
         Emacs,
         Opam,
         Vcpkg,
+        Pi,
         Pipx,
         Pipxu,
         Vscode,
@@ -1024,6 +1040,7 @@ pub(crate) fn default_steps() -> Vec<Step> {
         PipReview,
         PipReviewLocal,
         Pipupgrade,
+        Getnf,
         Ghcup,
         Stack,
         Tldr,
@@ -1039,6 +1056,7 @@ pub(crate) fn default_steps() -> Vec<Step> {
         Yarn,
         Pnpm,
         VoltaPackages,
+        VitePlus,
         Containers,
         Deno,
         Composer,
@@ -1074,6 +1092,7 @@ pub(crate) fn default_steps() -> Vec<Step> {
         Zvm,
         Aqua,
         Bun,
+        Ollama,
         Zigup,
         Ldcup,
         JetbrainsToolbox,

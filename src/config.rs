@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use std::collections::HashSet;
 use std::fs::{File, write};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -212,6 +213,13 @@ pub struct Yarn {
 #[derive(Deserialize, Default, Debug, Merge)]
 #[serde(deny_unknown_fields)]
 #[allow(clippy::upper_case_acronyms)]
+pub struct VitePlus {
+    use_sudo: Option<bool>,
+}
+
+#[derive(Deserialize, Default, Debug, Merge)]
+#[serde(deny_unknown_fields)]
+#[allow(clippy::upper_case_acronyms)]
 pub struct NPM {
     use_sudo: Option<bool>,
     audit_fix: Option<bool>,
@@ -238,6 +246,9 @@ pub struct Mise {
     bump: Option<bool>,
     interactive: Option<bool>,
     jobs: Option<u32>,
+    verbose: Option<bool>,
+    quiet: Option<bool>,
+    silent: Option<bool>,
 }
 
 #[derive(Deserialize, Default, Debug, Merge)]
@@ -273,6 +284,13 @@ pub struct Brew {
     fetch_head: Option<bool>,
 }
 
+#[derive(Deserialize, Default, Debug, Merge)]
+#[serde(deny_unknown_fields)]
+pub struct Go {
+    #[merge(strategy = crate::utils::merge_strategies::vec_prepend_opt)]
+    gup_exclude: Option<Vec<String>>,
+}
+
 #[derive(Debug, Deserialize, Clone, Copy, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum ArchPackageManager {
@@ -284,6 +302,7 @@ pub enum ArchPackageManager {
     Pamac,
     Paru,
     Pikaur,
+    Shelly,
     Trizen,
     Yay,
 }
@@ -342,6 +361,9 @@ pub struct Linux {
     pamac_arguments: Option<String>,
 
     #[merge(strategy = crate::utils::merge_strategies::string_append_opt)]
+    shelly_arguments: Option<String>,
+
+    #[merge(strategy = crate::utils::merge_strategies::string_append_opt)]
     dnf_arguments: Option<String>,
 
     #[merge(strategy = crate::utils::merge_strategies::string_append_opt)]
@@ -391,6 +413,8 @@ pub struct Composer {
 #[serde(deny_unknown_fields)]
 pub struct Vim {
     force_plug_update: Option<bool>,
+
+    vim_pack_prune: Option<bool>,
 }
 
 #[derive(Deserialize, Default, Debug, Merge)]
@@ -419,6 +443,12 @@ pub struct Misc {
 
     #[merge(strategy = crate::utils::merge_strategies::vec_prepend_opt)]
     disable: Option<Vec<Step>>,
+
+    #[merge(strategy = crate::utils::merge_strategies::vec_prepend_opt)]
+    first: Option<Vec<Step>>,
+
+    #[merge(strategy = crate::utils::merge_strategies::vec_prepend_opt)]
+    last: Option<Vec<Step>>,
 
     #[merge(strategy = crate::utils::merge_strategies::vec_prepend_opt)]
     ignore_failures: Option<Vec<Step>>,
@@ -567,16 +597,10 @@ pub struct UvPythonConfig {
 
 #[derive(Deserialize, Default, Debug, Merge)]
 #[serde(deny_unknown_fields)]
-pub struct GoConfig {
-    #[merge(strategy = crate::utils::merge_strategies::vec_prepend_opt)]
-    gup_exclude: Option<Vec<String>>,
-}
-
-#[derive(Deserialize, Default, Debug, Merge)]
-#[serde(deny_unknown_fields)]
 pub struct Cargo {
     git: Option<bool>,
     quiet: Option<bool>,
+    locked: Option<bool>,
 }
 
 #[derive(Deserialize, Default, Debug, Merge)]
@@ -690,6 +714,9 @@ pub struct ConfigFile {
     git: Option<Git>,
 
     #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
+    go: Option<Go>,
+
+    #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
     containers: Option<Containers>,
 
     #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
@@ -747,8 +774,6 @@ pub struct ConfigFile {
     doom: Option<DoomConfig>,
 
     #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
-    go: Option<GoConfig>,
-
     #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
     cargo: Option<Cargo>,
 
@@ -769,6 +794,8 @@ pub struct ConfigFile {
 
     #[merge(strategy = crate::utils::merge_strategies::commands_merge_opt)]
     triggers: Option<Commands>,
+
+    viteplus: Option<VitePlus>,
 }
 
 fn config_directory() -> PathBuf {
@@ -832,24 +859,24 @@ impl ConfigFile {
         let mut res = Vec::new();
         let dir_to_search = config_directory.join("topgrade.d");
 
-        if dir_to_search.exists() {
-            for entry in fs::read_dir(dir_to_search)? {
-                let entry = entry?;
-                // Use `Path::is_file()` here to traverse symbolic links.
-                // `DirEntry::file_type()` and `FileType::is_file()` will not traverse symbolic links.
-                if entry.path().is_file() {
-                    debug!(
-                        "Found additional (directory) configuration file at {}",
-                        entry.path().display()
-                    );
-                    res.push(entry.path());
-                }
-            }
-            res.sort();
-        } else {
+        if !dir_to_search.exists() {
             debug!("No additional configuration directory exists, creating one");
             fs::create_dir_all(&dir_to_search)?;
         }
+
+        for entry in fs::read_dir(&dir_to_search)? {
+            let entry_path = entry?.path();
+
+            if entry_path.is_file() {
+                debug!(
+                    "Found additional (directory) configuration file at {}",
+                    entry_path.display()
+                );
+                res.push(entry_path);
+            }
+        }
+
+        res.sort();
 
         Ok(res)
     }
@@ -1661,6 +1688,24 @@ impl Config {
             .unwrap_or(false)
     }
 
+    /// Whether to prune inactive `vim.pack` packages in Neovim
+    pub fn vim_pack_prune(&self) -> bool {
+        self.config_file
+            .vim
+            .as_ref()
+            .and_then(|c| c.vim_pack_prune)
+            .unwrap_or(false)
+    }
+
+    /// Binaries to exclude from `gup update`
+    pub fn gup_exclude(&self) -> &[String] {
+        self.config_file
+            .go
+            .as_ref()
+            .and_then(|g| g.gup_exclude.as_deref())
+            .unwrap_or(&[])
+    }
+
     /// Whether to send a desktop notification at the beginning of every step
     pub fn notify_each_step(&self) -> bool {
         self.config_file
@@ -1704,6 +1749,15 @@ impl Config {
             .linux
             .as_ref()
             .and_then(|s| s.pamac_arguments.as_deref())
+            .unwrap_or("")
+    }
+
+    /// Extra Shelly arguments
+    pub fn shelly_arguments(&self) -> &str {
+        self.config_file
+            .linux
+            .as_ref()
+            .and_then(|s| s.shelly_arguments.as_deref())
             .unwrap_or("")
     }
 
@@ -1919,6 +1973,32 @@ impl Config {
             .unwrap_or(false)
     }
 
+    /// Returns the steps to execute in order, prioritizing `misc.first` and `misc.last`
+    /// to over the default step list.
+    ///
+    /// Steps in `first` run first (in the order listed), then any remaining default
+    /// steps in their normal order, then steps in `last` (in the order listed).
+    pub fn steps(&self) -> Result<impl Iterator<Item = Step> + '_> {
+        let misc = self.config_file.misc.as_ref();
+        let first = misc.and_then(|m| m.first.as_deref()).unwrap_or_default();
+        let last = misc.and_then(|m| m.last.as_deref()).unwrap_or_default();
+
+        let specified: HashSet<Step> = first.iter().chain(last).copied().collect();
+        if specified.len() != first.len() + last.len() {
+            color_eyre::eyre::bail!("All steps included in `misc.first` and `misc.last` must be unique");
+        }
+
+        Ok(first
+            .iter()
+            .copied()
+            .chain(
+                crate::step::default_steps()
+                    .into_iter()
+                    .filter(move |s| !specified.contains(s)),
+            )
+            .chain(last.iter().copied()))
+    }
+
     /// Determine if we should ignore failures for this step
     pub fn ignore_failure(&self, step: Step) -> bool {
         self.config_file
@@ -1938,14 +2018,6 @@ impl Config {
                 .unwrap_or(true)
     }
 
-    pub fn gup_exclude(&self) -> Vec<String> {
-        self.config_file
-            .go
-            .as_ref()
-            .and_then(|go| go.gup_exclude.clone())
-            .unwrap_or_default()
-    }
-
     pub fn cargo_update_git(&self) -> bool {
         self.config_file
             .cargo
@@ -1959,6 +2031,14 @@ impl Config {
             .cargo
             .as_ref()
             .and_then(|cargo| cargo.quiet)
+            .unwrap_or(false)
+    }
+
+    pub fn cargo_update_locked(&self) -> bool {
+        self.config_file
+            .cargo
+            .as_ref()
+            .and_then(|cargo| cargo.locked)
             .unwrap_or(false)
     }
 
@@ -2240,6 +2320,14 @@ impl Config {
             .and_then(|yarn| yarn.use_sudo)
             .unwrap_or(false)
     }
+    #[cfg(target_os = "linux")]
+    pub fn viteplus_use_sudo(&self) -> bool {
+        self.config_file
+            .viteplus
+            .as_ref()
+            .and_then(|viteplus| viteplus.use_sudo)
+            .unwrap_or(false)
+    }
 
     pub fn deno_version(&self) -> Option<&str> {
         self.config_file.deno.as_ref().and_then(|deno| deno.version.as_deref())
@@ -2447,6 +2535,30 @@ impl Config {
             .unwrap_or(false)
     }
 
+    pub fn mise_quiet(&self) -> bool {
+        self.config_file
+            .mise
+            .as_ref()
+            .and_then(|mise| mise.quiet)
+            .unwrap_or(false)
+    }
+
+    pub fn mise_silent(&self) -> bool {
+        self.config_file
+            .mise
+            .as_ref()
+            .and_then(|mise| mise.silent)
+            .unwrap_or(false)
+    }
+
+    pub fn mise_verbose(&self) -> bool {
+        self.config_file
+            .mise
+            .as_ref()
+            .and_then(|mise| mise.verbose)
+            .unwrap_or(false)
+    }
+
     pub fn vscode_profile(&self) -> Option<&str> {
         let vscode_cfg = self.config_file.vscode.as_ref()?;
         let profile = vscode_cfg.profile.as_ref()?;
@@ -2573,6 +2685,35 @@ mod test {
 
     use crate::config::*;
     use color_eyre::eyre::eyre;
+    use merge2::Merge;
+
+    /// Regression test: verify that `overwrite_none` merge strategy preserves
+    /// existing (left) values and only fills in `None` fields from right.
+    /// Guards against future `merge` crate upgrades changing config precedence.
+    #[test]
+    fn merge_overwrite_none_preserves_left_values() {
+        let mut left = Containers {
+            ignored_containers: None,
+            runtime: Some(ContainerRuntime::Podman),
+            system_prune: Some(false),
+            use_sudo: None,
+            restart: None,
+        };
+        let mut right = Containers {
+            ignored_containers: None,
+            runtime: Some(ContainerRuntime::Docker),
+            system_prune: None,
+            use_sudo: Some(true),
+            restart: None,
+        };
+        left.merge(&mut right);
+
+        // Left Some is preserved even when right is also Some
+        assert!(matches!(left.runtime, Some(ContainerRuntime::Podman)));
+        assert_eq!(left.system_prune, Some(false));
+        // Left None is filled from right
+        assert_eq!(left.use_sudo, Some(true));
+    }
 
     /// Test the default configuration in `config.example.toml` is valid.
     #[test]
@@ -2659,5 +2800,64 @@ x = "cmd_x"
         assert_eq!(env_vars.len(), 2);
         assert_eq!(env_vars[0], ("VAR1".to_string(), "foo".to_string()));
         assert_eq!(env_vars[1], ("VAR2".to_string(), "bar".to_string()));
+    }
+
+    fn config_from_toml(toml_str: &str) -> Config {
+        Config {
+            opt: CommandLineArgs::parse_from::<_, String>([]),
+            config_file: toml::from_str(toml_str).expect("toml parse error"),
+            allowed_steps: Vec::new(),
+            config_hash: None,
+            config_path: None,
+        }
+    }
+
+    #[test]
+    fn test_steps_default_order_without_first_or_last() {
+        let steps: Vec<Step> = config().steps().unwrap().collect();
+        assert_eq!(steps, crate::step::default_steps());
+    }
+
+    #[test]
+    fn test_steps_first_and_last_reorder() {
+        let config = config_from_toml(
+            r#"
+[misc]
+first = ["cargo", "rustup"]
+last = ["chezmoi", "vim"]
+"#,
+        );
+        let steps: Vec<Step> = config.steps().unwrap().collect();
+
+        assert_eq!(&steps[..2], &[Step::Cargo, Step::Rustup]);
+        assert_eq!(&steps[steps.len() - 2..], &[Step::Chezmoi, Step::Vim]);
+        for reordered in [Step::Cargo, Step::Rustup, Step::Chezmoi, Step::Vim] {
+            assert_eq!(steps.iter().filter(|&&s| s == reordered).count(), 1);
+        }
+        // Untouched defaults still present.
+        assert!(steps.contains(&Step::Remotes));
+    }
+
+    #[test]
+    fn test_steps_rejects_duplicates_in_first() {
+        let config = config_from_toml(
+            r#"
+[misc]
+first = ["cargo", "cargo"]
+"#,
+        );
+        assert!(config.steps().is_err());
+    }
+
+    #[test]
+    fn test_steps_rejects_overlap_between_first_and_last() {
+        let config = config_from_toml(
+            r#"
+[misc]
+first = ["cargo"]
+last = ["cargo"]
+"#,
+        );
+        assert!(config.steps().is_err());
     }
 }

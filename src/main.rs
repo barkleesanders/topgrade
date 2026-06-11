@@ -11,7 +11,7 @@ use clap::CommandFactory;
 use clap::{Parser, crate_version};
 use color_eyre::eyre::Context;
 use color_eyre::eyre::Result;
-use console::Key;
+use crossterm::event::KeyCode;
 #[cfg(windows)]
 use etcetera::base_strategy::Windows;
 #[cfg(unix)]
@@ -23,6 +23,7 @@ use tracing::debug;
 use self::config::{CommandLineArgs, Config};
 use self::error::StepFailed;
 use self::runner::StepResult;
+use self::step::Step;
 #[allow(clippy::wildcard_imports)]
 use self::steps::{remote::*, *};
 use self::sudo::{Sudo, SudoCreateError, SudoKind};
@@ -216,7 +217,7 @@ fn run() -> Result<()> {
     }
 
     let steps = {
-        let default = step::default_steps();
+        let default: Vec<Step> = config.steps()?.collect();
         if let Some(rules) = config.step_order_rules() {
             step::apply_step_order(default, rules)
         } else {
@@ -352,18 +353,18 @@ fn run() -> Result<()> {
         print_info(t!("\n(R)eboot\n(P)oweroff\n(S)hell\n(Q)uit"));
         loop {
             match get_key() {
-                Ok(Key::Char('s' | 'S')) => {
+                Ok(KeyCode::Char('s' | 'S')) => {
                     run_shell().context("Failed to execute shell")?;
                 }
-                Ok(Key::Char('r' | 'R')) => {
+                Ok(KeyCode::Char('r' | 'R')) => {
                     println!("{}", t!("Rebooting..."));
                     reboot(&ctx).context("Failed to reboot")?;
                 }
-                Ok(Key::Char('p' | 'P')) => {
-                    println!("{}", t!("Powering off..."));
-                    poweroff(&ctx).context("Failed to poweroff")?;
+                Ok(KeyCode::Char('p' | 'P')) => {
+                    println!("{}", t!("Shutting down..."));
+                    shutdown(&ctx).context("Failed to shut down")?;
                 }
-                Ok(Key::Char('q' | 'Q')) => (),
+                Ok(KeyCode::Char('q' | 'Q')) => (),
                 _ => {
                     continue;
                 }

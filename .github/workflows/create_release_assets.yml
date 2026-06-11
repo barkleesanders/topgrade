@@ -2,7 +2,7 @@ name: Publish release files for CD native and non-cd-native environments
 
 on:
   repository_dispatch:
-    types: [ release-created ]
+    types: [release-created]
 
 permissions:
   contents: read
@@ -27,12 +27,12 @@ jobs:
         # Use the Ubuntu 22.04 image to link with a low version of glibc
         #
         # https://github.com/topgrade-rs/topgrade/issues/1095
-        platform: [ ubuntu-22.04, macos-latest, macos-15-intel, windows-latest ]
+        platform: [ubuntu-22.04, macos-latest, macos-15-intel, windows-latest]
     runs-on: ${{ matrix.platform }}
     env:
       tag: ${{ github.event.client_payload.tag }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
 
@@ -85,9 +85,11 @@ jobs:
       - name: Build in Release profile with all features enabled
         run: cargo build --release --all-features
 
+      - name: Install default-target
+        run: cargo install default-target
+
       - name: Rename Release (Unix)
         run: |
-          cargo install default-target
           mkdir -p assets
           FILENAME=topgrade-${tag}-$(default-target)
           mv target/release/topgrade assets
@@ -118,7 +120,6 @@ jobs:
 
       - name: Rename Release (Windows)
         run: |
-          cargo install default-target
           mkdir assets
           FILENAME=topgrade-${tag}-$(default-target)
           mv target/release/topgrade.exe assets/topgrade.exe
@@ -168,7 +169,7 @@ jobs:
       matrix_target: ${{ matrix.target }}
       tag: ${{ github.event.client_payload.tag }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
 
@@ -203,7 +204,7 @@ jobs:
         run: cross clippy --all-targets --locked --target "${matrix_target}" -- -D warnings
 
       - name: Run clippy (All features)
-        run: cross clippy  --locked --all-features --target "${matrix_target}" -- -D warnings
+        run: cross clippy --locked --all-features --target "${matrix_target}" -- -D warnings
 
       - name: Run tests
         run: cross test --target "${matrix_target}"
@@ -275,10 +276,8 @@ jobs:
         if: ${{ matrix.target == 'aarch64-unknown-linux-gnu' || matrix.target == 'armv7-unknown-linux-gnueabihf' }}
         shell: bash
 
-
       - name: Upload assets
-        run:
-          gh release upload "${tag}" assets/*
+        run: gh release upload "${tag}" assets/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -302,12 +301,12 @@ jobs:
         shell: openbsd {0}
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
 
       - name: Start OpenBSD VM
-        uses: vmactions/openbsd-vm@9a8e4351a4a0dc6238e7c69276dcbf6c03bea576 # v1.3.6
+        uses: vmactions/openbsd-vm@fcf799d7ce9c305ad89eabef1fb2fa5c1c42d0ee # v1.4.3
         with:
           arch: x86_64
           sync: nfs
@@ -376,17 +375,15 @@ jobs:
 
   publish:
     runs-on: ubuntu-latest
-    needs: [ native_build, cross_build, openbsd_build ]
-    # Make sure we still publish if one fails (notably openbsd_build, which is not tested in CI).
-    #  Unfortunately because of immutable releases, aur and winget have to wait for openbsd_build
-    #  as well, even though they don't use it.
-    if: always()
+    needs: [native_build, cross_build, openbsd_build]
     env:
       tag: ${{ github.event.client_payload.tag }}
     permissions:
       contents: write # `gh release edit`
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
       - name: Publish release
         run: gh release edit "$tag" --draft=false
         env:
@@ -394,7 +391,7 @@ jobs:
 
   triggers:
     runs-on: ubuntu-latest
-    needs: [ publish ]
+    needs: [publish]
     env:
       tag: ${{ github.event.client_payload.tag }}
     steps:

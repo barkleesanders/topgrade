@@ -3,6 +3,7 @@ name: Bug report
 about: Topgrade is misbehaving
 title: ''
 type: Bug
+labels: needs triage
 assignees: ''
 
 ---
@@ -14,9 +15,6 @@ Please make sure to
 before filing a new one!
 
 Questions labeled with `Optional` can be skipped.
-
-If you're here to report about a "No asset found" error, please make sure that
-an hour has been passed since the last release was made.
 -->
 
 ## Checklist

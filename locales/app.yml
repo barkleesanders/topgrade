@@ -48,6 +48,14 @@ _version: 2
   zh_CN: "正在重新启动..."
   zh_TW: "正在重新啟動..."
   de: "Neustart..."
+"Shutting down...":
+  en: "Shutting down..."
+  lt: "Išjungiamas..."
+  es: "Apagando..."
+  fr: "Arrêt..."
+  zh_CN: "正在关机..."
+  zh_TW: "正在關機..."
+  de: "Herunterfahren..."
 "Plugins upgraded":
   en: "Plugins upgraded"
   lt: "Įskiepiai atnaujinti"
@@ -152,6 +160,14 @@ _version: 2
   zh_CN: "未安装 Powershell"
   zh_TW: "未安裝 Powershell"
   de: "Powershell ist nicht installiert"
+"PowerShellGet Update-Module is unavailable or could not be loaded. Skipping PowerShell module updates.":
+  en: "PowerShellGet Update-Module is unavailable or could not be loaded. Skipping PowerShell module updates."
+  lt: "PowerShellGet Update-Module nepasiekiama arba jos nepavyko įkelti. Praleidžiamas PowerShell modulių atnaujinimas."
+  es: "PowerShellGet Update-Module no está disponible o no se pudo cargar. Se omite la actualización de módulos de PowerShell."
+  fr: "PowerShellGet Update-Module n'est pas disponible ou n'a pas pu être chargé. Mise à jour des modules PowerShell ignorée."
+  zh_CN: "PowerShellGet Update-Module 不可用或无法加载。正在跳过 PowerShell 模块更新。"
+  zh_TW: "PowerShellGet Update-Module 無法使用或無法載入。正在略過 PowerShell 模組更新。"
+  de: "PowerShellGet Update-Module ist nicht verfügbar oder konnte nicht geladen werden. PowerShell-Modulaktualisierung wird übersprungen."
 "Error detecting current distribution: {error}":
   en: "Error detecting current distribution: %{error}"
   lt: "Klaida nustatant dabartinę distribuciją: %{error}"
@@ -574,6 +590,14 @@ _version: 2
   zh_CN: "固件升级"
   zh_TW: "韌體更新"
   de: "Firmware-Updates"
+"fwupdmgr found firmware updates, but applying these is disabled in the config. Run 'fwupdmgr update' to update firmware manually.":
+  en: "fwupdmgr found firmware updates, but applying these is disabled in the config. Run 'fwupdmgr update' to update firmware manually."
+  lt: "fwupdmgr rado programinės aparatinės įrangos atnaujinimų, tačiau jų taikymas išjungtas konfigūracijoje. Paleiskite 'fwupdmgr update', kad atnaujintumėte rankiniu būdu."
+  es: "fwupdmgr encontró actualizaciones de firmware, pero su aplicación está deshabilitada en la configuración. Ejecute 'fwupdmgr update' para actualizar el firmware manualmente."
+  fr: "fwupdmgr a trouvé des mises à jour du firmware, mais leur application est désactivée dans la configuration. Exécutez 'fwupdmgr update' pour mettre à jour le firmware manuellement."
+  zh_CN: "fwupdmgr 找到了固件更新，但配置中已禁用自动应用。运行 'fwupdmgr update' 手动更新固件。"
+  zh_TW: "fwupdmgr 找到了韌體更新，但設定中已停用自動套用。執行 'fwupdmgr update' 手動更新韌體。"
+  de: "fwupdmgr hat Firmware-Updates gefunden, aber deren Anwendung ist in der Konfiguration deaktiviert. Führen Sie 'fwupdmgr update' aus, um die Firmware manuell zu aktualisieren."
 "Flatpak System Packages":
   en: "Flatpak System Packages"
   lt: "Flatpak sistemos paketai"

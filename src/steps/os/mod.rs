@@ -18,7 +18,7 @@ pub mod unix;
 pub mod windows;
 
 #[cfg(windows)]
-pub use windows::{poweroff, reboot};
+pub use windows::{reboot, shutdown};
 
 #[cfg(unix)]
-pub use unix::{poweroff, reboot};
+pub use unix::{reboot, shutdown};
