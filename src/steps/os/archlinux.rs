@@ -382,6 +382,10 @@ impl ArchPackageManager for Shelly {
 
         Ok(())
     }
+
+    fn package_installed(&self, package: &str, ctx: &ExecutionContext) -> Result<bool> {
+        is_installed_pacman_wrapper(ctx, &get_pacman_executable(), package)
+    }
 }
 
 fn box_package_manager<P: 'static + ArchPackageManager>(package_manager: P) -> Box<dyn ArchPackageManager> {
