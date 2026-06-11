@@ -896,6 +896,7 @@ impl Step {
 #[allow(clippy::too_many_lines)]
 pub(crate) fn default_steps() -> Vec<Step> {
     use Step::*;
+    // For now, SelfUpdate isn't included as it's ran before the other non-steps (pre-commands, sudo, etc)
     // Could probably have a smaller starting capacity, but this at least ensures only 2 allocations:
     // initial and shrink
     let mut steps = Vec::with_capacity(Step::COUNT);
