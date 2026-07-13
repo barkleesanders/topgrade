@@ -56,10 +56,6 @@ pub enum Distribution {
 }
 
 impl Distribution {
-    pub fn redhat_based(self) -> bool {
-        matches!(self, Distribution::CentOS | Distribution::Fedora)
-    }
-
     fn parse_os_release(os_release: &Ini) -> Result<Self> {
         let section = os_release.general_section();
         let id = section.get("ID");
