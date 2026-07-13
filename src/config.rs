@@ -225,6 +225,9 @@ pub struct VitePlus {
 pub struct NPM {
     use_sudo: Option<bool>,
     audit_fix: Option<bool>,
+
+    #[merge(strategy = crate::utils::merge_strategies::vec_prepend_opt)]
+    exclude: Option<Vec<String>>,
 }
 
 #[derive(Deserialize, Default, Debug, Merge)]
@@ -2336,6 +2339,19 @@ impl Config {
             .as_ref()
             .and_then(|npm| npm.audit_fix)
             .unwrap_or(false)
+    }
+
+    /// Global npm packages excluded from `npm update -g`.
+    ///
+    /// Useful when a package can't currently update (e.g. a native addon that
+    /// doesn't build against the installed Node version) and would otherwise
+    /// fail the whole step.
+    pub fn npm_exclude(&self) -> &[String] {
+        self.config_file
+            .npm
+            .as_ref()
+            .and_then(|npm| npm.exclude.as_deref())
+            .unwrap_or(&[])
     }
 
     pub fn yarn_use_sudo(&self) -> bool {

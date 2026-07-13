@@ -100,6 +100,29 @@ impl NPM {
         }
     }
 
+    /// Names of outdated global packages, from `npm outdated --json`.
+    ///
+    /// `npm outdated` exits 1 when outdated packages exist, so the exit code is
+    /// ignored and only the JSON payload is used.
+    fn outdated_global_packages(&self, ctx: &ExecutionContext) -> Vec<String> {
+        let args = ["outdated", self.global_location_arg(ctx), "--json"];
+        let Ok(output) = ctx
+            .execute(&self.command)
+            .always()
+            .args(args)
+            .output_checked_with_utf8(|_| Ok(()))
+        else {
+            return Vec::new();
+        };
+        match serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(output.stdout.trim()) {
+            Ok(map) => map.keys().cloned().collect(),
+            Err(err) => {
+                debug!("Failed to parse `npm outdated --json` output: {err}");
+                Vec::new()
+            }
+        }
+    }
+
     fn upgrade(&self, ctx: &ExecutionContext, use_sudo: bool) -> Result<()> {
         // Skip npm update if nothing is outdated — avoids npm 11's slow
         // phantom tree reconciliation ("changed 4000+ packages" with no
@@ -109,12 +132,36 @@ impl NPM {
             return Ok(());
         }
 
-        let args = ["update", self.global_location_arg(ctx)];
+        let mut args: Vec<String> = vec!["update".into(), self.global_location_arg(ctx).into()];
+
+        // With `[npm] exclude` configured, update the outdated packages by name
+        // instead of running a blanket `npm update -g`. A blanket update
+        // reconciles every installed package's tree — including an excluded
+        // package that isn't even outdated (e.g. one with a native addon that
+        // can't build against the installed Node version) — and fails the whole
+        // step. Per-package updates only touch the named packages' trees.
+        let excludes = ctx.config().npm_exclude();
+        if self.variant.is_npm() && !excludes.is_empty() {
+            let outdated = self.outdated_global_packages(ctx);
+            if !outdated.is_empty() {
+                let (excluded, to_update): (Vec<String>, Vec<String>) =
+                    outdated.into_iter().partition(|p| excludes.contains(p));
+                if !excluded.is_empty() {
+                    print_info(format!("Skipping excluded packages: {}", excluded.join(", ")));
+                }
+                if to_update.is_empty() {
+                    print_info("All other global packages are up to date");
+                    return Ok(());
+                }
+                args.extend(to_update);
+            }
+        }
+
         if use_sudo {
             let sudo = ctx.require_sudo()?;
-            sudo.execute(ctx, &self.command)?.args(args).status_checked()?;
+            sudo.execute(ctx, &self.command)?.args(&args).status_checked()?;
         } else {
-            ctx.execute(&self.command).args(args).status_checked()?;
+            ctx.execute(&self.command).args(&args).status_checked()?;
         }
 
         Ok(())

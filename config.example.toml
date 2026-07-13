@@ -499,6 +499,11 @@
 # To audit vulnerabilities, run `npm audit` in individual project directories.
 # audit_fix = true
 
+# Exclude specified global packages from `npm update -g`.
+# Useful when a package can't currently update (e.g. a native addon that doesn't
+# build against the installed Node version) and would otherwise fail the step.
+# exclude = ["webcrack"]
+
 
 [yarn]
 # Run `yarn global upgrade` with `sudo`
