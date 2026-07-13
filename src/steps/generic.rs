@@ -2741,13 +2741,14 @@ pub fn run_falconf(ctx: &ExecutionContext) -> Result<()> {
     ctx.execute(falconf).arg("sync").status_checked()
 }
 
-/// Try to get the latest yt-dlp version tag using `gh api` (authenticated, 5000 req/hr).
+/// Try to get a repo's latest release tag using `gh api` (authenticated, 5000 req/hr),
+/// avoiding tools' own unauthenticated GitHub API calls (60 req/hr, 403s easily).
 /// Returns None if `gh` is not installed or the API call fails.
-fn ytdlp_latest_version_via_gh() -> Option<String> {
+fn latest_github_release_via_gh(repo: &str) -> Option<String> {
     let gh = which_crate::which("gh").ok()?;
     #[allow(clippy::disallowed_methods)]
     let output = std::process::Command::new(gh)
-        .args(["api", "repos/yt-dlp/yt-dlp/releases/latest", "--jq", ".tag_name"])
+        .args(["api", &format!("repos/{repo}/releases/latest"), "--jq", ".tag_name"])
         .output()
         .ok()?;
     if output.status.success() {
@@ -2774,7 +2775,7 @@ pub fn run_ytdlp(ctx: &ExecutionContext) -> Result<()> {
     // Strategy: use `gh api` (authenticated) to get the latest version, then
     // pass it to `yt-dlp --update-to` which downloads directly from GitHub
     // releases without hitting the rate-limited API.
-    if let Some(latest_tag) = ytdlp_latest_version_via_gh() {
+    if let Some(latest_tag) = latest_github_release_via_gh("yt-dlp/yt-dlp") {
         if current_version == latest_tag {
             println!("yt-dlp is up to date ({current_version})");
             return Ok(());
@@ -2913,6 +2914,14 @@ pub fn run_opencode(ctx: &ExecutionContext) -> Result<()> {
         return Err(SkipStep(t!("OpenCode not installed with the official script").to_string()).into());
     }
     print_separator("OpenCode");
+
+    // `opencode upgrade` resolves the latest version via an UNAUTHENTICATED
+    // GitHub API call (60 req/hr) which 403s easily. When `gh` is available,
+    // resolve the tag through it (authenticated, 5000 req/hr) and pass an
+    // explicit target so opencode skips its own lookup.
+    if let Some(latest_tag) = latest_github_release_via_gh("anomalyco/opencode") {
+        return ctx.execute(opencode).args(["upgrade", &latest_tag]).status_checked();
+    }
     ctx.execute(opencode).arg("upgrade").status_checked()
 }
 
