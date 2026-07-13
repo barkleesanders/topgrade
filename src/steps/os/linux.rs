@@ -622,6 +622,7 @@ enum AptKind {
     AptFast,
     Mist,
     Nala,
+    Apt,
     AptGet,
 }
 
@@ -634,6 +635,8 @@ fn detect_apt() -> Result<(AptKind, PathBuf)> {
         Ok((Mist, mist))
     } else if Path::new("/usr/bin/nala").exists() {
         Ok((Nala, Path::new("/usr/bin/nala").to_path_buf()))
+    } else if let Some(apt) = which("apt") {
+        Ok((Apt, apt))
     } else {
         Ok((AptGet, require("apt-get")?))
     }
@@ -982,43 +985,65 @@ fn upgrade_kde_linux(ctx: &ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-/// `needrestart` should be skipped if:
+// `dnf4` runs `needrestart` itself via the EPEL plugin during a system upgrade, but `dnf5`
+// doesn't. The plugin config exists in both cases, so `dnf` version check is needed here.
+fn dnf_runs_needrestart(ctx: &ExecutionContext) -> bool {
+    if !Path::new("/etc/dnf/plugins/needrestart.conf").exists() {
+        return false;
+    }
+    let Some(dnf) = which("dnf") else {
+        return false;
+    };
+    ctx.execute(&dnf)
+        .always()
+        .arg("--version")
+        .output_checked_utf8()
+        .map(|output| !output.stdout.contains("dnf5"))
+        .unwrap_or(false)
+}
+
+/// `needrestart` should be skipped when the package manager will run it for us:
 ///
-/// 1. This is a redhat-based distribution
-/// 2. This is a debian-based distribution and it is using `nala` as the `apt`
-///    alternative
-/// 3. This is an arch-based distribution and `needrestart` is installed by pacman (pacman hooks
-///    call `needrestart` for us)
+/// 1. A needrestart hook file exists (pacman/apt) or dnf4's EPEL plugin is active,
+///    and the System step is going to run.
+/// 2. This is a debian-based distribution using `nala` as the `apt` alternative.
+/// 3. This is an arch-based distribution and `needrestart` is installed by pacman
+///    (pacman hooks call `needrestart` for us).
 fn should_skip_needrestart(ctx: &ExecutionContext) -> Result<()> {
-    let distribution = Distribution::detect()?;
+    const HOOKS: &[&str] = &[
+        "/usr/share/libalpm/hooks/needrestart.hook",
+        "/etc/pacman.d/hooks/needrestart.hook",
+        "/etc/apt/apt.conf.d/99needrestart",
+    ];
+
+    if !ctx.config().should_run(Step::System) {
+        return Ok(());
+    }
+
     let msg = t!("needrestart will be ran by the package manager");
 
-    if distribution.redhat_based() {
+    if HOOKS.iter().any(|hook| Path::new(hook).exists()) || dnf_runs_needrestart(ctx) {
         return Err(SkipStep(String::from(msg)).into());
     }
 
-    match distribution {
-        Distribution::Debian => {
-            let (apt_kind, _) = detect_apt()?;
-            if matches!(apt_kind, AptKind::Nala) {
-                return Err(SkipStep(String::from(msg)).into());
+    // Distro-specific cases that don't leave a hook file at the paths above
+    if let Ok(distribution) = Distribution::detect() {
+        match distribution {
+            Distribution::Debian => {
+                if let Ok((AptKind::Nala, _)) = detect_apt() {
+                    return Err(SkipStep(String::from(msg)).into());
+                }
             }
+            Distribution::Arch => {
+                // Skip if needrestart is installed via pacman (its hook will run automatically)
+                if let Some(manager) = get_arch_package_manager(ctx)
+                    && manager.package_installed("needrestart", ctx)?
+                {
+                    return Err(SkipStep(String::from(msg)).into());
+                }
+            }
+            _ => {}
         }
-        Distribution::Arch => {
-            // Skip if needrestart is installed via pacman (its hook will run automatically)
-            if let Some(manager) = get_arch_package_manager(ctx)
-                && manager.package_installed("needrestart", ctx)?
-            {
-                return Err(SkipStep(String::from(msg)).into());
-            }
-            // Also skip if needrestart pacman hook exists directly
-            if Path::new("/etc/pacman.d/hooks/needrestart.hook").exists()
-                || Path::new("/usr/share/libalpm/hooks/needrestart.hook").exists()
-            {
-                return Err(SkipStep(String::from(msg)).into());
-            }
-        }
-        _ => {}
     }
 
     Ok(())
@@ -1381,6 +1406,12 @@ pub fn run_cinnamon_spices_updater(ctx: &ExecutionContext) -> Result<()> {
     print_separator("Cinnamon spices");
 
     ctx.execute(cinnamon_spice_updater).arg("--update-all").status_checked()
+}
+
+pub fn run_pkgit(ctx: &ExecutionContext) -> Result<()> {
+    let pkgit = require("pkgit")?;
+    print_separator("Pkgit");
+    ctx.execute(pkgit).arg("-u").status_checked()
 }
 
 pub fn run_protonplus_update(ctx: &ExecutionContext) -> Result<()> {

@@ -146,52 +146,34 @@ fn upgrade_wsl_distribution(wsl: &Path, dist: &str, ctx: &ExecutionContext) -> R
 
     let mut command = ctx.execute(wsl);
 
-    // The `arg` method automatically quotes its arguments.
-    // This means we can't append additional arguments to `topgrade` in WSL
-    // by calling `arg` successively.
-    //
-    // For example:
-    //
-    // ```rust
-    // command
-    //  .args(["-d", dist, "bash", "-lc"])
-    //  .arg(format!("TOPGRADE_PREFIX={dist} exec {topgrade}"));
-    // ```
-    //
-    // creates a command string like:
-    // > `C:\WINDOWS\system32\wsl.EXE -d Ubuntu bash -lc 'TOPGRADE_PREFIX=Ubuntu exec /bin/topgrade'`
-    //
-    // Adding the following:
-    //
-    // ```rust
-    // command.arg("-v");
-    // ```
-    //
-    // appends the next argument like so:
-    // > `C:\WINDOWS\system32\wsl.EXE -d Ubuntu bash -lc 'TOPGRADE_PREFIX=Ubuntu exec /bin/topgrade' -v`
-    // which means `-v` isn't passed to `topgrade`.
-    // All flags must be included in the single string passed to `bash -lc`
-    // because WSL treats each `arg()` call as a separate argument to wsl.exe,
-    // not to the inner topgrade command (see comment above).
-    let mut topgrade_args = Vec::new();
+    // Pass the distro name, discovered topgrade path, and forwarded flags as
+    // positional parameters so the inner `bash -lc` receives them as single argv
+    // elements instead of parsing their contents. `"${@:3}"` forwards the flags
+    // to `topgrade` (not `bash`) and expands to nothing when there are none.
+    command
+        .args([
+            "-d",
+            dist,
+            "bash",
+            "-lc",
+            r#"TOPGRADE_PREFIX="$1" exec "$2" "${@:3}""#,
+            "bash",
+        ])
+        .arg(dist)
+        .arg(&topgrade);
     if ctx.config().verbose() {
-        topgrade_args.push("-v".to_string());
+        command.arg("-v");
     }
     if ctx.config().yes(Step::Wsl) {
-        topgrade_args.push("-y".to_string());
+        command.arg("-y");
     }
     if ctx.config().cleanup() {
-        topgrade_args.push("--cleanup".to_string());
+        command.arg("--cleanup");
     }
     // Forward --disable flags to the WSL topgrade invocation
     for step in ctx.config().cli_disabled_steps() {
-        topgrade_args.push(format!("--disable {step}"));
+        command.arg("--disable").arg(step.to_string());
     }
-    let args = topgrade_args.join(" ");
-
-    command
-        .args(["-d", dist, "bash", "-lc"])
-        .arg(format!("TOPGRADE_PREFIX={dist} exec {topgrade} {args}"));
 
     command.status_checked()
 }

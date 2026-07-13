@@ -1,5 +1,5 @@
 use std::env;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use color_eyre::eyre::Result;
 use tracing::debug;
@@ -33,28 +33,49 @@ pub fn zshrc() -> PathBuf {
     zdotdir().join(".zshrc")
 }
 
+enum AntidoteUpdate {
+    Shell,
+    Source(PathBuf),
+}
+
 pub fn run_antidote(ctx: &ExecutionContext) -> Result<()> {
     let zsh = require("zsh")?;
+    let update = if antidote_available_in_shell(ctx, &zsh) {
+        AntidoteUpdate::Shell
+    } else {
+        // Check for antidote in zdotdir first, then Homebrew paths
+        let antidote_candidates = [
+            zdotdir().join(".antidote/antidote.zsh"),
+            PathBuf::from("/opt/homebrew/opt/antidote/share/antidote/antidote.zsh"),
+            PathBuf::from("/usr/local/opt/antidote/share/antidote/antidote.zsh"),
+        ];
 
-    // Check for antidote in zdotdir first, then Homebrew paths
-    let antidote_candidates = [
-        zdotdir().join(".antidote/antidote.zsh"),
-        PathBuf::from("/opt/homebrew/opt/antidote/share/antidote/antidote.zsh"),
-        PathBuf::from("/usr/local/opt/antidote/share/antidote/antidote.zsh"),
-    ];
-
-    let antidote = antidote_candidates
-        .iter()
-        .find(|p| p.exists())
-        .ok_or_else(|| crate::error::SkipStep("antidote not found".to_string()))?
-        .clone();
+        let antidote = antidote_candidates
+            .iter()
+            .find(|p| p.exists())
+            .ok_or_else(|| crate::error::SkipStep("antidote not found".to_string()))?
+            .clone();
+        AntidoteUpdate::Source(antidote)
+    };
 
     print_separator("antidote");
 
+    match update {
+        AntidoteUpdate::Shell => ctx.execute(zsh).args(["-i", "-c", "antidote update"]).status_checked(),
+        AntidoteUpdate::Source(antidote) => ctx
+            .execute(zsh)
+            .args(["-c", r#"source "$1" && antidote update"#, "zsh"])
+            .arg(&antidote)
+            .status_checked(),
+    }
+}
+
+fn antidote_available_in_shell(ctx: &ExecutionContext, zsh: &Path) -> bool {
     ctx.execute(zsh)
-        .arg("-c")
-        .arg(format!("source {} && antidote update", antidote.display()))
-        .status_checked()
+        .always()
+        .args(["-i", "-c", "antidote home"])
+        .output_checked()
+        .is_ok()
 }
 
 pub fn run_antibody(ctx: &ExecutionContext) -> Result<()> {

@@ -124,6 +124,7 @@ pub enum Step {
     ConfigUpdate,
     Containers,
     Cursor,
+    CursorAgent,
     CustomCommands,
     DebGet,
     Deno,
@@ -200,6 +201,7 @@ pub enum Step {
     Node,
     Ollama,
     Opam,
+    Opencode,
     Pacdef,
     Pacstall,
     Pearl,
@@ -214,6 +216,7 @@ pub enum Step {
     Pkg,
     Pkgfile,
     Pkgin,
+    Pkgit,
     Plasmoids,
     PlasmoidsSystem,
     PlatformioCore,
@@ -235,6 +238,7 @@ pub enum Step {
     Sdio,
     Sdkman,
     SelfUpdate,
+    Sera,
     Sheldon,
     Shell,
     Skills,
@@ -272,6 +276,7 @@ pub enum Step {
     Yarn,
     Yazi,
     YtDlp,
+    Zerobrew,
     Zigup,
     Zvm,
 }
@@ -396,6 +401,7 @@ impl Step {
             Cursor => runner.execute(*self, "Cursor extensions", || {
                 generic::run_cursor_extensions_update(ctx)
             })?,
+            CursorAgent => runner.execute(*self, "Cursor Agent", || generic::run_cursor_agent(ctx))?,
             CustomCommands => {
                 if let Some(commands) = ctx.config().commands() {
                     for (name, command) in commands
@@ -573,11 +579,7 @@ impl Step {
                 runner.execute(*self, "Microsoft Store", || windows::microsoft_store(ctx))?
             }
             Miktex => runner.execute(*self, "miktex", || generic::run_miktex_packages_update(ctx))?,
-            Mise =>
-            {
-                #[cfg(unix)]
-                runner.execute(*self, "mise", || unix::run_mise(ctx))?
-            }
+            Mise => runner.execute(*self, "mise", || generic::run_mise(ctx))?,
             Msys2 =>
             {
                 #[cfg(windows)]
@@ -603,6 +605,7 @@ impl Step {
             Node => runner.execute(*self, "npm", || node::run_npm_upgrade(ctx))?,
             Ollama => runner.execute(*self, "Ollama", || generic::run_ollama_pull(ctx))?,
             Opam => runner.execute(*self, "opam", || generic::run_opam_update(ctx))?,
+            Opencode => runner.execute(*self, "OpenCode", || generic::run_opencode(ctx))?,
             Pacdef =>
             {
                 #[cfg(target_os = "linux")]
@@ -648,6 +651,11 @@ impl Step {
                 #[cfg(unix)]
                 runner.execute(*self, "pkgin", || unix::run_pkgin(ctx))?
             }
+            Pkgit =>
+            {
+                #[cfg(target_os = "linux")]
+                runner.execute(*self, "pkgit", || linux::run_pkgit(ctx))?
+            }
             Plasmoids => {
                 #[cfg(target_os = "linux")]
                 {
@@ -665,7 +673,7 @@ impl Step {
             PlatformioCore => runner.execute(*self, "PlatformIO Core", || generic::run_platform_io(ctx))?,
             Pnpm => runner.execute(*self, "pnpm", || node::run_pnpm_upgrade(ctx))?,
             Poetry => runner.execute(*self, "Poetry", || generic::run_poetry(ctx))?,
-            Powershell => runner.execute(*self, "Powershell Modules Update", || generic::run_powershell(ctx))?,
+            Powershell => runner.execute(*self, "PowerShell Modules Update", || generic::run_powershell(ctx))?,
             Protonplus =>
             {
                 #[cfg(target_os = "linux")]
@@ -732,6 +740,11 @@ impl Step {
                         runner.execute(*self, "Self Update", || self_update::self_update(ctx))?;
                     }
                 }
+            }
+            Sera =>
+            {
+                #[cfg(all(unix, not(any(target_os = "macos", target_os = "android"))))]
+                runner.execute(*self, "sera", || unix::run_sera(ctx))?
             }
             Sheldon => runner.execute(*self, "sheldon", || generic::run_sheldon(ctx))?,
             Shell => {
@@ -885,6 +898,11 @@ impl Step {
             Yarn => runner.execute(*self, "yarn", || node::run_yarn_upgrade(ctx))?,
             Yazi => runner.execute(*self, "Yazi packages", || generic::run_yazi(ctx))?,
             YtDlp => runner.execute(*self, "yt-dlp", || generic::run_ytdlp(ctx))?,
+            Zerobrew =>
+            {
+                #[cfg(unix)]
+                runner.execute(*self, "Zerobrew", || unix::run_zerobrew(ctx))?
+            }
             Zigup => runner.execute(*self, "zigup", || generic::run_zigup(ctx))?,
             Zvm => runner.execute(*self, "ZVM", || generic::run_zvm(ctx))?,
         }
@@ -900,6 +918,10 @@ pub(crate) fn default_steps() -> Vec<Step> {
     // Could probably have a smaller starting capacity, but this at least ensures only 2 allocations:
     // initial and shrink
     let mut steps = Vec::with_capacity(Step::COUNT);
+
+    // Steps that should run first
+    // Falconf can install programs we want to immediately detect and update
+    steps.push(Falconf);
 
     // Not combined with other generic steps to preserve the order as it was in main.rs originally,
     // but this can be changed in the future.
@@ -922,6 +944,7 @@ pub(crate) fn default_steps() -> Vec<Step> {
     steps.extend_from_slice(&[
         BrewFormula,
         BrewCask,
+        Zerobrew,
         Macports,
         Xcodes,
         Sparkle,
@@ -959,7 +982,6 @@ pub(crate) fn default_steps() -> Vec<Step> {
         Distrobox,
         DkpPacman,
         Firmware,
-        Restarts,
         Flatpak,
         Gearlever,
         BrewFormula,
@@ -968,6 +990,7 @@ pub(crate) fn default_steps() -> Vec<Step> {
         Waydroid,
         AutoCpufreq,
         CinnamonSpices,
+        Sera,
         Mandb,
         Pkgfile,
         Plasmoids,
@@ -1011,6 +1034,7 @@ pub(crate) fn default_steps() -> Vec<Step> {
         Cargo,
         Antigravity,
         Cursor,
+        CursorAgent,
         Flutter,
         Go,
         Emacs,
@@ -1048,6 +1072,7 @@ pub(crate) fn default_steps() -> Vec<Step> {
         Node,
         Yarn,
         Pnpm,
+        Pkgit,
         VoltaPackages,
         VitePlus,
         Containers,
@@ -1074,6 +1099,7 @@ pub(crate) fn default_steps() -> Vec<Step> {
         GitRepos,
         ClamAvDb,
         ClaudeCode,
+        Opencode,
         Colima,
         Skills,
         PlatformioCore,
@@ -1115,10 +1141,13 @@ pub(crate) fn default_steps() -> Vec<Step> {
         YtDlp,
         InstallRelease,
         Soar,
-        Falconf,
         Powershell,
-        CustomCommands,
         Vagrant,
+        // Steps that should run last
+        // Last out of convention
+        CustomCommands,
+        // Last because it prompts for restart
+        Restarts,
     ]);
 
     steps.shrink_to_fit();
