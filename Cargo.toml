@@ -79,7 +79,7 @@ assets = [
 ]
 
 [target.'cfg(target_os = "linux")'.dependencies]
-libplasmoid-updater = { version = "0.1.4", features = ["cli"] }
+libplasmoid-updater = { version = "0.1.5", features = ["cli"] }
 
 [target.'cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))'.dependencies]
 system_shutdown = "4.1.0"

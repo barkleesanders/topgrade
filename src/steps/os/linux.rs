@@ -1443,14 +1443,14 @@ pub fn run_protonplus_update(ctx: &ExecutionContext) -> Result<()> {
 }
 
 pub fn run_plasmoid_updater(ctx: &ExecutionContext, system: bool, step_name: &str) -> Result<()> {
-    let with_yes = ctx
+    let auto_confirm = ctx
         .config()
         .yes(if system { Step::PlasmoidsSystem } else { Step::Plasmoids });
     let excluded = ctx.config().plasmoids_get_excluded(system);
     let config = PlasmoidConfig::new()
         .with_system(system)
         .with_excluded_packages(excluded)
-        .with_yes(with_yes);
+        .with_auto_confirm(auto_confirm);
 
     print_separator(step_name);
 
