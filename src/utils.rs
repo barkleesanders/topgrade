@@ -18,6 +18,7 @@ use crate::config::DEFAULT_LOG_LEVEL;
 use crate::error::SkipStep;
 use crate::execution_context::ExecutionContext;
 use crate::executor::Executor;
+use crate::steps::generic::IS_WSL;
 use crate::terminal::shell;
 
 pub trait PathExt
@@ -91,7 +92,7 @@ pub fn set_wsl_use_windows_path(use_windows_path: bool) -> Result<()> {
 /// fails to run in the guest (topgrade-rs/topgrade#1243). When on, detection skips those.
 /// Off via `wsl_use_windows_path = true`.
 fn wsl_windows_path_filter_enabled() -> bool {
-    crate::steps::generic::is_wsl().unwrap_or(false) && !WSL_USE_WINDOWS_PATH.get().copied().unwrap_or(false)
+    *IS_WSL && !WSL_USE_WINDOWS_PATH.get().copied().unwrap_or(false)
 }
 
 /// Mount points backed by Windows drives (drvfs on WSL1, 9p/virtiofs on WSL2).
@@ -314,7 +315,10 @@ pub fn is_elevated() -> bool {
 }
 
 pub mod merge_strategies {
+    use indexmap::IndexMap;
     use merge2::Merge;
+    use std::hash::Hash;
+    use std::mem;
 
     use crate::config::Commands;
 
@@ -322,11 +326,10 @@ pub mod merge_strategies {
     pub fn vec_prepend_opt<T>(left: &mut Option<Vec<T>>, right: &mut Option<Vec<T>>) {
         if let Some(left_vec) = left {
             if let Some(right_vec) = right {
-                right_vec.append(left_vec);
-                *left = right.take();
+                merge2::vec::prepend(left_vec, right_vec);
             }
         } else {
-            *left = right.take();
+            mem::swap(left, right);
         }
     }
 
@@ -338,10 +341,21 @@ pub mod merge_strategies {
                 left_str.push_str(right_str);
             }
         } else {
-            *left = right.take();
+            mem::swap(left, right);
         }
     }
 
+    pub fn indexmap_merge_opt<T: Hash + Eq, U>(left: &mut Option<IndexMap<T, U>>, right: &mut Option<IndexMap<T, U>>) {
+        if let Some(left_inner) = left {
+            if let Some(right_inner) = right {
+                left_inner.extend(mem::take(right_inner));
+            }
+        } else {
+            mem::swap(left, right);
+        }
+    }
+
+    /// Fork-only: merge two Option<T> where T: Merge (used 8x in config.rs).
     pub fn inner_merge_opt<T>(left: &mut Option<T>, right: &mut Option<T>)
     where
         T: Merge,
@@ -351,17 +365,18 @@ pub mod merge_strategies {
                 left_inner.merge(right_inner);
             }
         } else {
-            *left = right.take();
+            mem::swap(left, right);
         }
     }
 
+    /// Fork-only: merge two Option<Commands> by extending (used in config.rs).
     pub fn commands_merge_opt(left: &mut Option<Commands>, right: &mut Option<Commands>) {
         if let Some(left_inner) = left {
             if let Some(right_inner) = right.take() {
                 left_inner.extend(right_inner);
             }
         } else {
-            *left = right.take();
+            mem::swap(left, right);
         }
     }
 }

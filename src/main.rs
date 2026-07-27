@@ -24,10 +24,8 @@ use self::config::{CommandLineArgs, Config};
 use self::error::StepFailed;
 use self::runner::StepResult;
 use self::step::Step;
-#[allow(clippy::wildcard_imports)]
 use self::steps::{remote::*, *};
 use self::sudo::{Sudo, SudoCreateError, SudoKind};
-#[allow(clippy::wildcard_imports)]
 use self::terminal::*;
 use self::utils::{install_color_eyre, install_tracing, is_elevated, set_wsl_use_windows_path, update_tracing};
 
@@ -64,7 +62,6 @@ pub(crate) static WINDOWS_DIRS: LazyLock<Windows> = LazyLock::new(|| Windows::ne
 // Init and load the i18n files
 i18n!("locales", fallback = "en");
 
-#[allow(clippy::too_many_lines)]
 fn run() -> Result<()> {
     install_color_eyre()?;
     ctrlc::set_handler();
@@ -202,8 +199,8 @@ fn run() -> Result<()> {
         None
     };
 
-    if config.pre_sudo()
-        && let Some(sudo) = ctx.sudo()
+    if let Some(sudo) = ctx.sudo()
+        && (config.pre_sudo() || (config.sudo_loop() && sudo.can_refresh()))
     {
         sudo.elevate(&ctx)?;
     }

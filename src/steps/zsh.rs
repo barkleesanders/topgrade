@@ -9,10 +9,23 @@ use crate::HOME_DIR;
 use crate::XDG_DIRS;
 use crate::command::CommandExt;
 use crate::execution_context::ExecutionContext;
+use crate::executor::Executor;
 use crate::git::RepoStep;
 use crate::terminal::print_separator;
 use crate::utils::{PathExt, require};
 use etcetera::base_strategy::BaseStrategy;
+
+/// Build an interactive `zsh -i -c` invocation with a trailing `exit $?`.
+///
+/// `zsh -i -c` execs (rather than forks) its last command, so an external final command leaves
+/// the tty foreground process group pointing at a dead pgrp. Forcing the builtin `exit` to be the
+/// last command sidesteps that. Drop this helper and restore plain `execute` once zsh fixes it.
+fn execute_interactive_zsh(ctx: &ExecutionContext, zsh: &Path, command: &str) -> Executor {
+    let script = format!("{command}; exit $?");
+    let mut exec = ctx.execute(zsh);
+    exec.args(["-i", "-c", &script]);
+    exec
+}
 
 pub fn run_zr(ctx: &ExecutionContext) -> Result<()> {
     let zsh = require("zsh")?;
@@ -21,8 +34,7 @@ pub fn run_zr(ctx: &ExecutionContext) -> Result<()> {
 
     print_separator("zr");
 
-    let cmd = format!("source {} && zr --update", zshrc().display());
-    ctx.execute(zsh).args(["-l", "-c", cmd.as_str()]).status_checked()
+    execute_interactive_zsh(ctx, &zsh, "zr --update").status_checked()
 }
 
 fn zdotdir() -> PathBuf {
@@ -61,7 +73,11 @@ pub fn run_antidote(ctx: &ExecutionContext) -> Result<()> {
     print_separator("antidote");
 
     match update {
-        AntidoteUpdate::Shell => ctx.execute(zsh).args(["-i", "-c", "antidote update"]).status_checked(),
+        // Commands handed to an *interactive* zsh must end on a builtin (#2158).
+        AntidoteUpdate::Shell => ctx
+            .execute(zsh)
+            .args(["-i", "-c", "antidote update; exit $?"])
+            .status_checked(),
         AntidoteUpdate::Source(antidote) => ctx
             .execute(zsh)
             .args(["-c", r#"source "$1" && antidote update"#, "zsh"])
@@ -71,9 +87,10 @@ pub fn run_antidote(ctx: &ExecutionContext) -> Result<()> {
 }
 
 fn antidote_available_in_shell(ctx: &ExecutionContext, zsh: &Path) -> bool {
+    // Commands handed to an *interactive* zsh must end on a builtin (#2158).
     ctx.execute(zsh)
         .always()
-        .args(["-i", "-c", "antidote home"])
+        .args(["-i", "-c", "command -v antidote"])
         .output_checked()
         .is_ok()
 }
@@ -89,33 +106,28 @@ pub fn run_antibody(ctx: &ExecutionContext) -> Result<()> {
 
 pub fn run_antigen(ctx: &ExecutionContext) -> Result<()> {
     let zsh = require("zsh")?;
-    let zshrc = zshrc().require()?;
     env::var("ADOTDIR")
         .map_or_else(|_| HOME_DIR.join("antigen.zsh"), PathBuf::from)
         .require()?;
 
     print_separator("antigen");
 
-    let cmd = format!("source {} && (antigen selfupdate ; antigen update)", zshrc.display());
-    ctx.execute(zsh).args(["-l", "-c", cmd.as_str()]).status_checked()
+    execute_interactive_zsh(ctx, &zsh, "antigen selfupdate ; antigen update").status_checked()
 }
 
 pub fn run_zgenom(ctx: &ExecutionContext) -> Result<()> {
     let zsh = require("zsh")?;
-    let zshrc = zshrc().require()?;
     env::var("ZGEN_SOURCE")
         .map_or_else(|_| HOME_DIR.join(".zgenom"), PathBuf::from)
         .require()?;
 
     print_separator("zgenom");
 
-    let cmd = format!("source {} && zgenom selfupdate && zgenom update", zshrc.display());
-    ctx.execute(zsh).args(["-l", "-c", cmd.as_str()]).status_checked()
+    execute_interactive_zsh(ctx, &zsh, "zgenom selfupdate && zgenom update").status_checked()
 }
 
 pub fn run_zplug(ctx: &ExecutionContext) -> Result<()> {
     let zsh = require("zsh")?;
-    zshrc().require()?;
 
     env::var("ZPLUG_HOME")
         .map_or_else(|_| HOME_DIR.join(".zplug"), PathBuf::from)
@@ -128,7 +140,6 @@ pub fn run_zplug(ctx: &ExecutionContext) -> Result<()> {
 
 pub fn run_zinit(ctx: &ExecutionContext) -> Result<()> {
     let zsh = require("zsh")?;
-    let zshrc = zshrc().require()?;
 
     env::var("ZINIT_HOME")
         .map_or_else(|_| XDG_DIRS.data_dir().join("zinit"), PathBuf::from)
@@ -136,20 +147,17 @@ pub fn run_zinit(ctx: &ExecutionContext) -> Result<()> {
 
     print_separator("zinit");
 
-    let cmd = format!("source {} && zinit self-update && zinit update --all", zshrc.display());
-    ctx.execute(zsh).args(["-i", "-c", cmd.as_str()]).status_checked()
+    execute_interactive_zsh(ctx, &zsh, "zinit self-update && zinit update --all").status_checked()
 }
 
 pub fn run_zi(ctx: &ExecutionContext) -> Result<()> {
     let zsh = require("zsh")?;
-    let zshrc = zshrc().require()?;
 
     HOME_DIR.join(".zi").require()?;
 
     print_separator("zi");
 
-    let cmd = format!("source {} && zi self-update && zi update --all", zshrc.display());
-    ctx.execute(zsh).args(["-i", "-c", &cmd]).status_checked()
+    execute_interactive_zsh(ctx, &zsh, "zi self-update && zi update --all").status_checked()
 }
 
 pub fn run_zim(ctx: &ExecutionContext) -> Result<()> {

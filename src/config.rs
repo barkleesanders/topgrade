@@ -197,7 +197,6 @@ pub struct Conda {
 
 #[derive(Deserialize, Default, Debug, Merge)]
 #[serde(deny_unknown_fields)]
-#[allow(clippy::upper_case_acronyms)]
 pub struct Distrobox {
     use_root: Option<bool>,
 
@@ -207,22 +206,19 @@ pub struct Distrobox {
 
 #[derive(Deserialize, Default, Debug, Merge)]
 #[serde(deny_unknown_fields)]
-#[allow(clippy::upper_case_acronyms)]
 pub struct Yarn {
     use_sudo: Option<bool>,
 }
 
 #[derive(Deserialize, Default, Debug, Merge)]
 #[serde(deny_unknown_fields)]
-#[allow(clippy::upper_case_acronyms)]
 pub struct VitePlus {
     use_sudo: Option<bool>,
 }
 
 #[derive(Deserialize, Default, Debug, Merge)]
 #[serde(deny_unknown_fields)]
-#[allow(clippy::upper_case_acronyms)]
-pub struct NPM {
+pub struct Npm {
     use_sudo: Option<bool>,
     audit_fix: Option<bool>,
 
@@ -232,21 +228,18 @@ pub struct NPM {
 
 #[derive(Deserialize, Default, Debug, Merge)]
 #[serde(deny_unknown_fields)]
-#[allow(clippy::upper_case_acronyms)]
 pub struct Deno {
     version: Option<String>,
 }
 
 #[derive(Deserialize, Default, Debug, Merge)]
 #[serde(deny_unknown_fields)]
-#[allow(clippy::upper_case_acronyms)]
 pub struct Chezmoi {
     exclude_encrypted: Option<bool>,
 }
 
 #[derive(Deserialize, Default, Debug, Merge)]
 #[serde(deny_unknown_fields)]
-#[allow(clippy::upper_case_acronyms)]
 pub struct Mise {
     bump: Option<bool>,
     interactive: Option<bool>,
@@ -258,21 +251,18 @@ pub struct Mise {
 
 #[derive(Deserialize, Default, Debug, Merge)]
 #[serde(deny_unknown_fields)]
-#[allow(clippy::upper_case_acronyms)]
 pub struct Firmware {
     upgrade: Option<bool>,
 }
 
 #[derive(Deserialize, Default, Debug, Merge)]
 #[serde(deny_unknown_fields)]
-#[allow(clippy::upper_case_acronyms)]
 pub struct Flatpak {
     use_sudo: Option<bool>,
 }
 
 #[derive(Deserialize, Default, Debug, Merge)]
 #[serde(deny_unknown_fields)]
-#[allow(clippy::upper_case_acronyms)]
 pub struct Pixi {
     include_release_notes: Option<bool>,
 }
@@ -604,6 +594,12 @@ pub struct UvPythonConfig {
 
 #[derive(Deserialize, Default, Debug, Merge)]
 #[serde(deny_unknown_fields)]
+pub struct Flutter {
+    force: Option<bool>,
+}
+
+#[derive(Deserialize, Default, Debug, Merge)]
+#[serde(deny_unknown_fields)]
 pub struct Cargo {
     git: Option<bool>,
     quiet: Option<bool>,
@@ -683,92 +679,95 @@ pub struct StepOrder {
 #[derive(Deserialize, Default, Debug, Merge)]
 /// Configuration file
 pub struct ConfigFile {
-    #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
+    #[merge(strategy = merge2::option::recursive)]
     include: Option<Include>,
 
     #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
     #[serde(alias = "general")]
     misc: Option<Misc>,
 
-    #[merge(strategy = crate::utils::merge_strategies::commands_merge_opt)]
+    #[merge(strategy = crate::utils::merge_strategies::indexmap_merge_opt)]
     pre_commands: Option<Commands>,
 
-    #[merge(strategy = crate::utils::merge_strategies::commands_merge_opt)]
+    #[merge(strategy = crate::utils::merge_strategies::indexmap_merge_opt)]
     post_commands: Option<Commands>,
 
-    #[merge(strategy = crate::utils::merge_strategies::commands_merge_opt)]
+    #[merge(strategy = crate::utils::merge_strategies::indexmap_merge_opt)]
     commands: Option<Commands>,
 
-    #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
+    #[merge(strategy = merge2::option::recursive)]
     conda: Option<Conda>,
 
-    #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
+    #[merge(strategy = merge2::option::recursive)]
     python: Option<Python>,
 
-    #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
+    #[merge(strategy = merge2::option::recursive)]
     composer: Option<Composer>,
 
-    #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
+    #[merge(strategy = merge2::option::recursive)]
     brew: Option<Brew>,
 
-    #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
+    #[merge(strategy = merge2::option::recursive)]
     linux: Option<Linux>,
 
-    #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
+    #[merge(strategy = merge2::option::recursive)]
     mandb: Option<Mandb>,
 
-    #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
+    #[merge(strategy = merge2::option::recursive)]
     git: Option<Git>,
 
-    #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
+    #[merge(strategy = merge2::option::recursive)]
     go: Option<Go>,
 
-    #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
+    #[merge(strategy = merge2::option::recursive)]
     containers: Option<Containers>,
 
-    #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
+    #[merge(strategy = merge2::option::recursive)]
     windows: Option<Windows>,
 
-    #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
-    npm: Option<NPM>,
+    #[merge(strategy = merge2::option::recursive)]
+    npm: Option<Npm>,
 
-    #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
+    #[merge(strategy = merge2::option::recursive)]
     chezmoi: Option<Chezmoi>,
 
-    #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
+    #[merge(strategy = merge2::option::recursive)]
     mise: Option<Mise>,
 
-    #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
+    #[merge(strategy = merge2::option::recursive)]
     yarn: Option<Yarn>,
 
-    #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
+    #[merge(strategy = merge2::option::recursive)]
     deno: Option<Deno>,
 
-    #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
+    #[merge(strategy = merge2::option::recursive)]
     vim: Option<Vim>,
 
-    #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
+    #[merge(strategy = merge2::option::recursive)]
     firmware: Option<Firmware>,
 
-    #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
+    #[merge(strategy = merge2::option::recursive)]
+    flutter: Option<Flutter>,
+
+    #[merge(strategy = merge2::option::recursive)]
     vagrant: Option<Vagrant>,
 
-    #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
+    #[merge(strategy = merge2::option::recursive)]
     flatpak: Option<Flatpak>,
 
-    #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
+    #[merge(strategy = merge2::option::recursive)]
     pixi: Option<Pixi>,
 
-    #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
+    #[merge(strategy = merge2::option::recursive)]
     distrobox: Option<Distrobox>,
 
-    #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
+    #[merge(strategy = merge2::option::recursive)]
     lensfun: Option<Lensfun>,
 
-    #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
+    #[merge(strategy = merge2::option::recursive)]
     julia: Option<JuliaConfig>,
 
-    #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
+    #[merge(strategy = merge2::option::recursive)]
     zigup: Option<Zigup>,
 
     #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
@@ -777,17 +776,17 @@ pub struct ConfigFile {
     #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
     vscode: Option<VscodeConfig>,
 
-    #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
+    #[merge(strategy = merge2::option::recursive)]
     doom: Option<DoomConfig>,
 
     #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
     #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
     cargo: Option<Cargo>,
 
-    #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
+    #[merge(strategy = merge2::option::recursive)]
     rustup: Option<Rustup>,
 
-    #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
+    #[merge(strategy = merge2::option::recursive)]
     pkgfile: Option<Pkgfile>,
 
     #[merge(strategy = crate::utils::merge_strategies::inner_merge_opt)]
@@ -1762,7 +1761,6 @@ impl Config {
     }
 
     /// Extra Pikaur arguments
-    #[allow(dead_code)]
     pub fn pikaur_arguments(&self) -> &str {
         self.config_file
             .linux
@@ -2070,6 +2068,14 @@ impl Config {
             .unwrap_or(false)
     }
 
+    pub fn flutter_force(&self) -> bool {
+        self.config_file
+            .flutter
+            .as_ref()
+            .and_then(|flutter| flutter.force)
+            .unwrap_or(false)
+    }
+
     pub fn rustup_channels(&self) -> Vec<String> {
         self.config_file
             .rustup
@@ -2298,7 +2304,8 @@ impl Config {
             .unwrap_or(false)
     }
 
-    /// If `true`, periodically run `sudo -v` to keep credentials alive during the run
+    /// If `true`, credentials are cached at the start of the run (as with `pre_sudo`)
+    /// and refreshed non-interactively (`sudo -n -v`) to keep them alive during the run
     pub fn sudo_loop(&self) -> bool {
         self.opt.sudo_loop
             || self
@@ -2309,7 +2316,7 @@ impl Config {
                 .unwrap_or(false)
     }
 
-    /// Interval in seconds between `sudo -v` invocations when sudo_loop is active
+    /// Interval in seconds between `sudo -n -v` invocations when sudo_loop is active
     pub fn sudo_loop_interval(&self) -> u16 {
         self.opt
             .sudo_loop_interval

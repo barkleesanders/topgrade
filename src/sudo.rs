@@ -285,10 +285,9 @@ impl Sudo {
         match self.kind {
             SudoKind::Doas => {
                 // `doas` doesn't have anything like `sudo -v` to cache credentials,
-                // so we just execute a dummy `echo` command so we have something
-                // unobtrusive to run.
+                // so we just execute a no-op dummy command, `true`.
                 // See: https://man.openbsd.org/doas
-                cmd.arg("echo");
+                cmd.arg("true");
             }
             SudoKind::Sudo => {
                 // From `man sudo` on macOS:
@@ -322,14 +321,14 @@ impl Sudo {
                 // See the note for `doas` above.
                 //
                 // See: https://linux.die.net/man/1/pkexec
-                cmd.arg("echo");
+                cmd.arg("true");
             }
             SudoKind::Run0 => {
                 // `run0` uses polkit for authentication
                 // and thus has the same issues as `pkexec`.
                 //
                 // See: https://www.freedesktop.org/software/systemd/man/devel/run0.html
-                cmd.arg("echo");
+                cmd.arg("true");
             }
             SudoKind::Please => {
                 // From `man please`
@@ -342,26 +341,41 @@ impl Sudo {
         cmd.status_checked().wrap_err("Failed to elevate permissions")
     }
 
+    /// Refresh arguments for the sudo kinds that can cache credentials.
+    fn refresh_args(&self) -> Option<&'static [&'static str]> {
+        match self.kind {
+            // `-n`: refresh runs on a background thread, so a cold credential must fail fast rather than prompt.
+            // `-v`: on a still-valid timestamp extends it without touching PAM.
+            SudoKind::Sudo => Some(&["-n", "-v"]),
+            // `-w`: refreshes a still-valid token without prompting; it only prompts once the token has gone cold.
+            // `-n`: warm path skips the token update entirely, silently stopping the keep-alive.
+            SudoKind::Please => Some(&["-w"]),
+            _ => None,
+        }
+    }
+
+    /// Whether this sudo kind supports credential cache refresh
+    pub fn can_refresh(&self) -> bool {
+        self.refresh_args().is_some()
+    }
+
     /// Silently refresh cached superuser credentials.
     ///
-    /// Only for sudo kinds that support credential caching (`sudo -v`, `please -w`).
+    /// Only for sudo kinds that support credential caching (`sudo -n -v`, `please -w`).
     /// For others it's a no-op.
     pub fn refresh(&self, run_type: RunType) -> Result<()> {
         let Some(path) = self.path.as_deref() else {
             return Ok(());
         };
+        let Some(args) = self.refresh_args() else {
+            return Ok(());
+        };
 
-        let mut cmd = run_type.execute(path);
-        match self.kind {
-            SudoKind::Sudo => {
-                cmd.arg("-v");
-            }
-            SudoKind::Please => {
-                cmd.arg("-w");
-            }
-            _ => return Ok(()),
-        }
-        cmd.status_checked().wrap_err(t!("Failed to refresh sudo credentials"))
+        run_type
+            .execute(path)
+            .args(args)
+            .status_checked()
+            .wrap_err(t!("Failed to refresh sudo credentials"))
     }
 
     /// Execute a command with `sudo`.

@@ -6,7 +6,7 @@ keywords = ["upgrade", "update"]
 license = "GPL-3.0-or-later"
 repository = "https://github.com/topgrade-rs/topgrade"
 rust-version = "1.88.0"
-version = "17.7.0"
+version = "17.8.0"
 exclude = ["doc/screenshot.gif", "BREAKINGCHANGES_dev.md"]
 edition = "2024"
 
@@ -37,7 +37,7 @@ shell-words = "1.1"
 color-eyre = "0.6"
 tracing = { version = "0.1", features = ["attributes", "log"] }
 tracing-subscriber = { version = "0.3.20", features = ["env-filter", "time"] }
-merge2 = "0.3"
+merge2 = "0.3.2"
 regex-split = "0.1"
 notify-rust = "4.12.0"
 wildmatch = "2.3.0"

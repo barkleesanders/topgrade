@@ -152,7 +152,7 @@ impl Executor {
                 debug!("Running {:?}", c);
                 // We should use `spawn()` here rather than `spawn_checked()` since
                 // their semantics and behaviors are different.
-                #[allow(clippy::disallowed_methods)]
+                #[expect(clippy::disallowed_methods)]
                 c.spawn().map(ExecutorChild::Wet)?
             }
             Executor::Dry(_) => ExecutorChild::Dry,
@@ -168,7 +168,7 @@ impl Executor {
             Executor::Wet(c) | Executor::Damp(c) => {
                 // We should use `output()` here rather than `output_checked()` since
                 // their semantics and behaviors are different.
-                #[allow(clippy::disallowed_methods)]
+                #[expect(clippy::disallowed_methods)]
                 Ok(ExecutorOutput::Wet(c.output()?))
             }
             Executor::Dry(_) => Ok(ExecutorOutput::Dry),
@@ -300,7 +300,7 @@ impl DryCommand {
     }
 
     /// Convert this dry command into a real Command that will execute.
-    #[allow(clippy::disallowed_methods)]
+    #[expect(clippy::disallowed_methods)]
     fn into_command(self) -> Command {
         let mut cmd = Command::new(&self.program);
         cmd.args(&self.args);
@@ -323,7 +323,6 @@ impl DryCommand {
 /// The Result of spawn. Contains an actual `std::process::Child` if executed by a wet command.
 pub enum ExecutorChild {
     // Both RunType::Wet and RunType::Damp use this variant
-    #[allow(unused)] // this type has not been used
     Wet(Child),
     Dry,
 }

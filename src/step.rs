@@ -12,7 +12,6 @@ use strum::{EnumCount, EnumIter, EnumString, VariantNames};
 #[cfg(feature = "self-update")]
 use crate::self_update;
 use crate::steps::remote::vagrant;
-#[allow(clippy::wildcard_imports)]
 use crate::steps::*;
 use crate::utils::hostname;
 
@@ -118,6 +117,8 @@ pub enum Step {
     CinnamonSpices,
     ClamAvDb,
     ClaudeCode,
+    ClaudeCodePlugins,
+    Codex,
     Colima,
     Composer,
     Conda,
@@ -282,7 +283,7 @@ pub enum Step {
 }
 
 impl Step {
-    #[allow(clippy::too_many_lines)]
+    #[expect(clippy::too_many_lines)]
     pub fn run(&self, runner: &mut Runner, ctx: &ExecutionContext) -> Result<()> {
         // When --only is specified, skip detection for steps not in the list.
         // This avoids unnecessary work like scanning for git repos, checking
@@ -389,6 +390,10 @@ impl Step {
             }
             ClamAvDb => runner.execute(*self, "ClamAV Databases", || generic::run_freshclam(ctx))?,
             ClaudeCode => runner.execute(*self, "Claude Code", || generic::run_claude_code(ctx))?,
+            ClaudeCodePlugins => {
+                runner.execute(*self, "Claude Code Plugins", || generic::run_claude_code_plugins(ctx))?
+            }
+            Codex => runner.execute(*self, "Codex", || generic::run_codex(ctx))?,
             Colima => runner.execute(*self, "Colima", || generic::run_colima(ctx))?,
             Composer => runner.execute(*self, "composer", || generic::run_composer_update(ctx))?,
             Conda => runner.execute(*self, "conda", || generic::run_conda_update(ctx))?,
@@ -774,7 +779,11 @@ impl Step {
                 #[cfg(target_os = "linux")]
                 runner.execute(*self, "snap", || linux::run_snap(ctx))?
             }
-            Soar => runner.execute(*self, "Soar", || generic::run_soar(ctx))?,
+            Soar =>
+            {
+                #[cfg(target_os = "linux")]
+                runner.execute(*self, "soar", || linux::run_soar(ctx))?
+            }
             Sparkle =>
             {
                 #[cfg(target_os = "macos")]
@@ -911,7 +920,7 @@ impl Step {
     }
 }
 
-#[allow(clippy::too_many_lines)]
+#[expect(clippy::too_many_lines)]
 pub(crate) fn default_steps() -> Vec<Step> {
     use Step::*;
     // For now, SelfUpdate isn't included as it's ran before the other non-steps (pre-commands, sudo, etc)
@@ -975,6 +984,7 @@ pub(crate) fn default_steps() -> Vec<Step> {
         DebGet,
         Toolbx,
         Snap,
+        Soar,
         Pacstall,
         Pacdef,
         Protonup,
@@ -1099,6 +1109,8 @@ pub(crate) fn default_steps() -> Vec<Step> {
         GitRepos,
         ClamAvDb,
         ClaudeCode,
+        ClaudeCodePlugins,
+        Codex,
         Opencode,
         Colima,
         Skills,

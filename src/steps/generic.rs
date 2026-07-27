@@ -40,16 +40,14 @@ use crate::{
 };
 
 #[cfg(target_os = "linux")]
-pub fn is_wsl() -> Result<bool> {
+pub static IS_WSL: LazyLock<bool> = LazyLock::new(|| {
     let output = std::fs::read_to_string("/proc/version").unwrap_or_default();
     debug!("Proc version output: {}", output);
-    Ok(output.to_lowercase().contains("microsoft"))
-}
+    output.to_lowercase().contains("microsoft")
+});
 
 #[cfg(not(target_os = "linux"))]
-pub fn is_wsl() -> Result<bool> {
-    Ok(false)
-}
+pub static IS_WSL: LazyLock<bool> = LazyLock::new(|| false);
 
 pub fn run_cargo_update(ctx: &ExecutionContext) -> Result<()> {
     let cargo_dir = env::var_os("CARGO_HOME")
@@ -115,7 +113,14 @@ pub fn run_flutter_upgrade(ctx: &ExecutionContext) -> Result<()> {
     let flutter = require("flutter")?;
 
     print_separator("Flutter");
-    ctx.execute(flutter).arg("upgrade").status_checked()
+    let mut command = ctx.execute(flutter);
+    command.arg("upgrade");
+
+    if ctx.config().flutter_force() {
+        command.arg("--force");
+    }
+
+    command.status_checked()
 }
 
 /// On macOS, attempt to find Homebrew's keg-only Ruby `gem` binary.
@@ -326,8 +331,53 @@ pub fn run_micro(ctx: &ExecutionContext) -> Result<()> {
     target_os = "netbsd",
     target_os = "dragonfly"
 )))]
+enum Apm {
+    AtomPackageManager(PathBuf),
+    Other,
+}
+
+#[cfg(not(any(
+    target_os = "freebsd",
+    target_os = "openbsd",
+    target_os = "netbsd",
+    target_os = "dragonfly"
+)))]
+impl Apm {
+    fn atom_package_manager(self) -> Result<PathBuf> {
+        match self {
+            Self::AtomPackageManager(apm) => Ok(apm),
+            Self::Other => {
+                Err(SkipStep(t!("Command `apm` does not appear to be Atom Package Manager").to_string()).into())
+            }
+        }
+    }
+
+    fn get(ctx: &ExecutionContext) -> Result<Self> {
+        let apm = require("apm")?;
+        let output = ctx.execute(&apm).always().arg("--help").output_checked_utf8()?;
+
+        if output
+            .stdout
+            .split(|character: char| !character.is_alphanumeric())
+            .any(|word| word.eq_ignore_ascii_case("atom"))
+        {
+            debug!("Detected `apm` as Atom Package Manager");
+            Ok(Self::AtomPackageManager(apm))
+        } else {
+            debug!("Detected `apm` as another package manager");
+            Ok(Self::Other)
+        }
+    }
+}
+
+#[cfg(not(any(
+    target_os = "freebsd",
+    target_os = "openbsd",
+    target_os = "netbsd",
+    target_os = "dragonfly"
+)))]
 pub fn run_apm(ctx: &ExecutionContext) -> Result<()> {
-    let apm = require("apm")?;
+    let apm = Apm::get(ctx)?.atom_package_manager()?;
 
     print_separator("Atom Package Manager");
 
@@ -652,7 +702,7 @@ impl VSCodeVariant {
 /// VSCodium Insiders, Cursor, Antigravity), as the process is the same for all.
 fn run_vscode_compatible(variant: VSCodeVariant, ctx: &ExecutionContext) -> Result<()> {
     // Calling VSCode/VSCodium in WSL may install a server instead of updating extensions (https://github.com/topgrade-rs/topgrade/issues/594#issuecomment-1782157367)
-    if is_wsl()? {
+    if *IS_WSL {
         return Err(SkipStep(String::from("Should not run in WSL")).into());
     }
 
@@ -1684,15 +1734,6 @@ pub fn run_colima(ctx: &ExecutionContext) -> Result<()> {
     Ok(())
 }
 
-pub fn run_soar(ctx: &ExecutionContext) -> Result<()> {
-    let soar = require("soar")?;
-
-    print_separator("Soar");
-
-    ctx.execute(&soar).arg("update").status_checked()?;
-    ctx.execute(&soar).arg("upgrade").status_checked()
-}
-
 pub fn run_bob(ctx: &ExecutionContext) -> Result<()> {
     let bob = require("bob")?;
 
@@ -2676,6 +2717,14 @@ pub fn run_typst(ctx: &ExecutionContext) -> Result<()> {
 }
 
 pub fn run_claude_code(ctx: &ExecutionContext) -> Result<()> {
+    let claude = require("claude")?;
+
+    print_separator("Claude Code");
+
+    ctx.execute(&claude).arg("update").status_checked()
+}
+
+pub fn run_claude_code_plugins(ctx: &ExecutionContext) -> Result<()> {
     #[derive(Deserialize)]
     #[serde(rename_all = "camelCase")]
     struct ClaudePlugin {
@@ -2687,9 +2736,7 @@ pub fn run_claude_code(ctx: &ExecutionContext) -> Result<()> {
 
     let claude = require("claude")?;
 
-    print_separator("Claude Code");
-
-    ctx.execute(&claude).arg("update").status_checked()?;
+    print_separator("Claude Code Plugins");
 
     ctx.execute(&claude)
         .args(["plugin", "marketplace", "update"])
@@ -2731,6 +2778,23 @@ pub fn run_claude_code(ctx: &ExecutionContext) -> Result<()> {
     }
 
     if success { Ok(()) } else { Err(eyre!(StepFailed)) }
+}
+
+pub fn run_codex(ctx: &ExecutionContext) -> Result<()> {
+    let codex = require("codex")?;
+
+    // `codex` will only update if the standalone binary is installed under `~/.local/bin`.
+    let local_bin = HOME_DIR.join(".local/bin");
+    if !codex.canonicalize().is_ok_and(|path| path.starts_with(&local_bin)) {
+        return Err(SkipStep(format!(
+            "codex is not installed under {}; update it via its package manager",
+            local_bin.display()
+        ))
+        .into());
+    }
+
+    print_separator("Codex");
+    ctx.execute(codex).arg("update").status_checked()
 }
 
 pub fn run_falconf(ctx: &ExecutionContext) -> Result<()> {
@@ -3113,6 +3177,17 @@ pub fn run_mise(ctx: &ExecutionContext) -> Result<()> {
     }
 
     cmd.status_checked()?;
+
+    if ctx.config().cleanup() {
+        cmd = ctx.execute(&mise);
+        cmd.arg("prune");
+
+        if ctx.config().yes(Step::Mise) {
+            cmd.arg("--yes");
+        }
+
+        cmd.status_checked()?;
+    }
 
     refresh_mise_env(ctx, &mise, temp_dir.path())
 }

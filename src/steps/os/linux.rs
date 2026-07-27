@@ -13,7 +13,7 @@ use crate::config::NixHandler;
 use crate::error::{SkipStep, StepFailed, TopgradeError};
 use crate::execution_context::ExecutionContext;
 use crate::step::Step;
-use crate::steps::generic::is_wsl;
+use crate::steps::generic::IS_WSL;
 use crate::steps::os::archlinux;
 use crate::steps::os::archlinux::get_arch_package_manager;
 use crate::steps::unix::{NhSwitchArgs, can_nh_switch, nh_switch};
@@ -1061,7 +1061,7 @@ pub fn run_needrestart(ctx: &ExecutionContext) -> Result<()> {
 pub fn run_fwupdmgr(ctx: &ExecutionContext) -> Result<()> {
     let fwupdmgr = require("fwupdmgr")?;
 
-    if is_wsl()? {
+    if *IS_WSL {
         return Err(SkipStep(t!("Should not run in WSL").to_string()).into());
     }
 
@@ -1183,6 +1183,16 @@ pub fn run_snap(ctx: &ExecutionContext) -> Result<()> {
 
     let sudo = ctx.require_sudo()?;
     sudo.execute(ctx, &snap)?.arg("refresh").status_checked()
+}
+
+pub fn run_soar(ctx: &ExecutionContext) -> Result<()> {
+    let soar = require("soar")?;
+
+    print_separator("soar");
+
+    ctx.execute(&soar).arg("sync").status_checked()?;
+    ctx.execute(&soar).arg("update").status_checked()?;
+    ctx.execute(&soar).args(["self", "update"]).status_checked()
 }
 
 pub fn run_pihole_update(ctx: &ExecutionContext) -> Result<()> {
@@ -1340,7 +1350,10 @@ pub fn run_waydroid(ctx: &ExecutionContext) -> Result<()> {
 pub fn run_auto_cpufreq(ctx: &ExecutionContext) -> Result<()> {
     let auto_cpu_freq = require("auto-cpufreq")?.canonicalize()?;
 
-    if auto_cpu_freq.as_path() != Path::new("/usr/local/bin/auto-cpufreq") {
+    // The fix is *auto_cpu_freq != *"/usr/local/bin/auto-cpufreq", but that impl is not available in MSRV yet
+    // TODO: once MSRV is bumped high enough that it is, remove this and apply lint
+    #[expect(clippy::cmp_owned)]
+    if auto_cpu_freq != PathBuf::from("/usr/local/bin/auto-cpufreq") {
         return Err(SkipStep(String::from(
             "`auto-cpufreq` was not installed by the official installer, but presumably by a package manager.",
         ))
