@@ -124,3 +124,48 @@ i18n-locale CI churn). Each accepted PR permanently removes a conflict source.
 3. After merge: `cargo fmt && cargo clippy && cargo test`, then rebuild the installed binary
    (`cargo install --path .` — the local `topgrade` on PATH is built from this repo, not a release).
 4. Re-check the `Step` enum diff (fork-only vs upstream-only) and update this file.
+
+---
+
+## Sync executed — 2026-07-26 (merge `40af633`)
+
+Merged `upstream/main` @ v17.8.0 (27 commits) on branch `sync/upstream-v17.8.0`.
+**Behind upstream: 0.** Version 17.7.0 → 17.8.0.
+
+**9 conflicts / 35 hunks resolved.** Two resolutions were *forced* by code that had already
+merged cleanly — worth remembering, because "take ours" would have failed to compile:
+
+- `NPM` → `Npm`: the field `npm: Option<Npm>` (config.rs:776) came in from upstream, so the
+  fork's `pub struct NPM` had to be renamed.
+- Upstream's `Flutter` struct is required by `flutter: Option<Flutter>` (797) and
+  `flutter_force()` (2130), so that hunk needed **both** structs, not one.
+
+Two resolutions deliberately rejected upstream's version:
+- `os/unix.rs`: adopted the `get_symlink_sudo_user` rename but **not** upstream's added
+  unconditional `None =>` arm, which would have made the fork's `None if use_nom` guard (#719)
+  unreachable.
+- `src/utils.rs`: took the union, not a side — upstream's three helpers plus the fork's
+  `inner_merge_opt` / `commands_merge_opt`, both still called from config.rs.
+
+**Verification:** `cargo fmt --check` clean · `cargo clippy` exit 0, zero warnings on a forced
+rebuild · `cargo test` 26/26 · `cargo install --path .` → `topgrade 17.8.0` enumerates 35 steps
+(was 30), including upstream's new **Claude Code Plugins** step, with fork-only steps intact.
+
+### State after sync
+
+| | |
+|---|---:|
+| Steps: upstream / fork | 174 / 186 |
+| Fork-only steps (carry cost) | 13 |
+| Upstream-only steps | **1** (`NixHelper`) |
+
+`NixHelper` is absent from the fork on purpose (`de4ff54`). Upstream keeps it as a no-op in
+`DEPRECATED_STEPS` (`step.rs:16`, dispatch `NixHelper => {}`). This is a permanent 1-step
+divergence that will conflict on every sync for zero runtime benefit. **Two ways to end it:**
+either restore the variant to match upstream, or upstream the removal as
+`refactor: remove deprecated NixHelper step` — the latter is a clean, tiny PR and belongs in
+the plan above.
+
+Category C is now fully absorbed: Soar, install-release, Colima, sparkle, `gup_exclude`, doas
+`--setenv`, and merge2 all came from upstream, and the fork's duplicate `generic::run_soar` was
+deleted. Those seven will not conflict again.
