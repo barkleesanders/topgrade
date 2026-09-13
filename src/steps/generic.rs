@@ -35,7 +35,7 @@ use crate::sudo::SudoExecuteOpts;
 use crate::terminal::{print_separator, shell};
 use crate::utils::{PathExt, check_is_python_2_or_shim, require, require_one, require_option, run_with_shell, which};
 use crate::{
-    error::{DryRun, SkipStep, StepFailed, TopgradeError},
+    error::{SkipStep, StepFailed, TopgradeError},
     terminal::print_warning,
 };
 
@@ -2040,11 +2040,14 @@ pub fn run_uv(ctx: &ExecutionContext) -> Result<Vec<UpdatedComponent>> {
             .output_checked()
             .is_ok();
 
-        if self_update_feature_enabled {
-            let output = ctx.execute(&uv_exec).args(["self", "update"]).output_checked()?;
-
+        if self_update_feature_enabled
+            && let ExecutorOutput::Wet(output) = ctx.execute(&uv_exec).args(["self", "update"]).output()?
+        {
             std::io::stdout().write_all(&output.stdout)?;
             std::io::stderr().write_all(&output.stderr)?;
+            if !output.status.success() {
+                bail!("uv self update failed");
+            }
 
             self_output = Some(output);
         }
@@ -2075,28 +2078,25 @@ pub fn run_uv(ctx: &ExecutionContext) -> Result<Vec<UpdatedComponent>> {
             .execute(&uv_exec)
             .args(["self", "update"])
             // `output()` captures the output so that users won't see it for now.
-            .output()
-            .expect("this should be ok regardless of this child process's exit code");
-        let output = match output {
-            ExecutorOutput::Wet(wet) => wet,
-            ExecutorOutput::Dry => return Err(DryRun().into()),
-        };
-        let stderr = std::str::from_utf8(&output.stderr).wrap_err("Output should be valid UTF-8")?;
+            .output()?;
+        if let ExecutorOutput::Wet(output) = output {
+            let stderr = std::str::from_utf8(&output.stderr).wrap_err("Output should be valid UTF-8")?;
 
-        if ERROR_MSGS.iter().any(|&n| stderr.contains(n)) {
-            // Feature `self-update` is disabled, nothing to do.
-        } else {
-            // Feature is enabled, flush the captured output so that users know we did the self-update.
+            if ERROR_MSGS.iter().any(|&n| stderr.contains(n)) {
+                // Feature `self-update` is disabled, nothing to do.
+            } else {
+                // Feature is enabled, flush the captured output so that users know we did the self-update.
 
-            std::io::stdout().write_all(&output.stdout)?;
-            std::io::stderr().write_all(&output.stderr)?;
+                std::io::stdout().write_all(&output.stdout)?;
+                std::io::stderr().write_all(&output.stderr)?;
 
-            // And, if self update failed, fail the step as well.
-            if !output.status.success() {
-                bail!("uv self update failed");
+                // And, if self update failed, fail the step as well.
+                if !output.status.success() {
+                    bail!("uv self update failed");
+                }
+
+                self_output = Some(output);
             }
-
-            self_output = Some(output);
         }
     };
 
