@@ -208,9 +208,26 @@ fn run() -> Result<()> {
     // Held until `run()` returns — dropping would stop the background thread.
     let _sudo_loop_guard = spawn_sudo_loop(&ctx, &config);
 
+    // A failing pre-command must not abort the whole run by default:
+    // pre-commands are best-effort hooks (updaters, pre-flight fixes), and
+    // one wedged hook previously made every topgrade run fail before any
+    // step executed. The failure is still surfaced: it is printed and it
+    // marks the run failed at the end. Set `misc.pre_commands_fatal = true`
+    // to restore the historical abort-on-failure behavior.
+    let mut failed = false;
     if let Some(commands) = config.pre_commands() {
         for (name, command) in commands {
-            generic::run_custom_command(name, command, &ctx)?;
+            if let Err(error) = generic::run_custom_command(name, command, &ctx) {
+                if config.pre_commands_fatal() {
+                    return Err(error);
+                }
+                print_warning(format!(
+                    "Pre-command '{name}' failed; continuing with the remaining steps. \
+                     Set misc.pre_commands_fatal = true to abort the run instead."
+                ));
+                debug!("Pre-command '{name}' failed: {error:?}");
+                failed = true;
+            }
         }
     }
 
@@ -263,8 +280,6 @@ fn run() -> Result<()> {
             exit(status.code().unwrap_or(2));
         }
     }
-
-    let mut failed = false;
 
     let report = runner.report();
     if !report.is_empty() {
