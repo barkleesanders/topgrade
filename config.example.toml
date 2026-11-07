@@ -39,6 +39,11 @@
 # Ignore failures for these steps
 # ignore_failures = ["powershell"]
 
+# Abort the run when a pre-command fails (historical behavior). By default
+# (false), a failing pre-command is reported, marks the run failed, and the
+# remaining steps still run.
+# pre_commands_fatal = true
+
 # List of remote machines with Topgrade installed on them
 # remote_topgrades = ["toothless", "pi", "parnas"]
 

@@ -432,6 +432,11 @@ pub struct Misc {
 
     pre_sudo: Option<bool>,
 
+    /// When true, a failing pre-command aborts the run (the historical
+    /// behavior). Defaults to false: a failing pre-command is reported and
+    /// the run continues with the remaining steps.
+    pre_commands_fatal: Option<bool>,
+
     sudo_loop: Option<bool>,
 
     sudo_loop_interval: Option<u16>,
@@ -2023,6 +2028,17 @@ impl Config {
                     .filter(move |s| !specified.contains(s)),
             )
             .chain(last.iter().copied()))
+    }
+
+    /// Whether a failing pre-command aborts the run. Opt-in via
+    /// `misc.pre_commands_fatal`; the default is false, so a failing
+    /// pre-command is reported and the run continues.
+    pub fn pre_commands_fatal(&self) -> bool {
+        self.config_file
+            .misc
+            .as_ref()
+            .and_then(|misc| misc.pre_commands_fatal)
+            .unwrap_or(false)
     }
 
     /// Determine if we should ignore failures for this step
