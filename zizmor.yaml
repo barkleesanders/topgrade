@@ -1,0 +1,48 @@
+# zizmor configuration for barkleesanders/topgrade (fork of topgrade-rs/topgrade).
+#
+# The two ignores below resolve this fork's two residual High findings from
+# the owner's 2026-11-05 fleet-wide zizmor sweep. Both flagged files are
+# inherited from upstream (check_pr_template.yml is byte-identical to
+# upstream; create_release_assets.yml matches upstream at this fork's sync
+# point), so the resolutions live in this repo-local config rather than in
+# edits to upstream workflow files, which would create a permanent rebase
+# delta on every upstream sync. Each ignore is scoped to one rule in one
+# file. Full per-finding analysis: fork owner's closeout record, 2026-11-07.
+rules:
+  dangerous-triggers:
+    ignore:
+      # check_pr_template.yml triggers on pull_request_target, but:
+      #  - the workflow has NO checkout step and never executes PR code;
+      #  - every attacker-influenceable value (PR body, author login) is
+      #    passed through env: and only string-compared or handed to
+      #    `gh api` / `gh pr` as data arguments;
+      #  - the token is already least-privilege: top-level
+      #    `permissions: {}` and the single job grants exactly
+      #    contents:read + issues:write + pull-requests:write, the minimum
+      #    needed to comment on and close a non-conforming PR;
+      #  - the trigger is load-bearing: moderating fork PRs requires a
+      #    write-capable token, which the `pull_request` trigger does not
+      #    grant for forks. Upstream hardened this file the same way
+      #    (topgrade-rs/topgrade#1960).
+      - check_pr_template.yml
+  template-injection:
+    ignore:
+      # create_release_assets.yml, job openbsd_build, step "Package OpenBSD
+      # release": the only inline expansion is
+      # ${{ github.event.client_payload.tag }}, used once as a filename
+      # component inside a throwaway OpenBSD VM (vmactions/openbsd-vm).
+      # It is not exploitable here:
+      #  - the workflow runs only on repository_dispatch
+      #    (types: [release-created]); creating a dispatch event requires
+      #    a token with write access to this repository;
+      #  - the sole in-repo sender is release-plz.yml, which sets `tag`
+      #    from release-plz's own release output (the vX.Y.Z tag the
+      #    release pipeline itself just created);
+      #  - anyone able to control `tag` already holds write access and
+      #    could edit these workflows directly, so the expansion grants
+      #    no capability they do not already have;
+      #  - the standard env: fix is inapplicable inside the VM (runner
+      #    env vars are not forwarded into it; see the step's own
+      #    comment). The job already passes `tag` through env: for every
+      #    step that runs on the runner itself.
+      - create_release_assets.yml
