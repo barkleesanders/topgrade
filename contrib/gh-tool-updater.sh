@@ -108,35 +108,9 @@ get_latest_version() {
     local repo="$1"
     local tag_prefix="$2"
     local tag_filter="$3"
-    local tag raw_version
-
-    if [[ -n "$tag_filter" ]]; then
-        # Monorepo: list releases and filter by tag pattern
-        tag=$(gh release list --repo "$repo" --limit 30 2>/dev/null \
-            | grep -E "$tag_filter" \
-            | head -1 \
-            | awk '{print $1}')
-        if [[ -z "$tag" ]]; then
-            echo ""
-            return
-        fi
-        # Strip tag_prefix to get version
-        raw_version="${tag#$tag_prefix}"
-    else
-        # Standard repo: latest release
-        tag=$(gh release view --repo "$repo" --json tagName -q .tagName 2>/dev/null) || true
-        if [[ -z "$tag" ]]; then
-            echo ""
-            return
-        fi
-        if [[ -n "$tag_prefix" ]]; then
-            raw_version="${tag#$tag_prefix}"
-        else
-            raw_version="$tag"
-        fi
-    fi
-
-    normalize_version "$raw_version"
+    local tag
+    tag=$(get_latest_tag "$repo" "$tag_filter") || tag=""
+    normalize_version "${tag#"$tag_prefix"}"
 }
 
 get_latest_tag() {
@@ -144,10 +118,14 @@ get_latest_tag() {
     local tag_filter="$2"
 
     if [[ -n "$tag_filter" ]]; then
-        gh release list --repo "$repo" --limit 30 2>/dev/null \
-            | grep -E "$tag_filter" \
-            | head -1 \
-            | awk '{print $1}'
+        # Keep the 1,000-release search window, stopping at the first stable match.
+        local page rows match
+        for ((page=1; page<=10; page++)); do
+            rows=$(gh api "repos/$repo/releases?per_page=100&page=$page" --jq '.[] | [.tag_name, .draft, .prerelease] | @tsv') || return 1
+            [[ -n "$rows" ]] || break
+            match=$(awk -F '\t' -v pattern="$tag_filter" '$1 ~ pattern && $2 == "false" && $3 == "false" {print $1; exit}' <<< "$rows")
+            if [[ -n "$match" ]]; then echo "$match"; return; fi
+        done
     else
         gh release view --repo "$repo" --json tagName -q .tagName 2>/dev/null || true
     fi
@@ -365,8 +343,8 @@ cmd_update() {
 
         # Get latest version
         local latest_version latest_tag
-        latest_version=$(get_latest_version "$repo" "$tag_prefix" "$tag_filter")
-        latest_tag=$(get_latest_tag "$repo" "$tag_filter")
+        latest_tag=$(get_latest_tag "$repo" "$tag_filter") || latest_tag=""
+        latest_version=$(normalize_version "${latest_tag#"$tag_prefix"}")
 
         if [[ -z "$latest_version" ]]; then
             fail "Could not fetch latest release for $repo"
@@ -458,7 +436,9 @@ cmd_status() {
         [[ -z "$installed_version" ]] && installed_version="n/a"
         [[ -z "$latest_version" ]] && latest_version="n/a"
 
-        if [[ "$installed_version" == "$latest_version" ]]; then
+        if [[ "$latest_version" == "n/a" ]]; then
+            status_icon="${YELLOW}unknown (release lookup failed)${NC}"
+        elif [[ "$installed_version" == "$latest_version" ]]; then
             status_icon="${GREEN}current${NC}"
         elif [[ "$installed_version" == "n/a" ]]; then
             status_icon="${YELLOW}not installed${NC}"

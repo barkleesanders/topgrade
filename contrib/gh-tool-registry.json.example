@@ -46,7 +46,7 @@
       "type": "tarball"
     },
     {
-      "repo": "trycua/lume",
+      "repo": "trycua/cua",
       "binary_name": "lume",
       "install_path": "/Users/barkleesanders/.local/bin/lume",
       "asset_pattern": "lume-*-darwin-arm64.tar.gz",
