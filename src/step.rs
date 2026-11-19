@@ -124,6 +124,9 @@ pub enum Step {
     Conda,
     ConfigUpdate,
     Containers,
+    // This name is miscapitalized on purpose, so the CLI name is
+    //  `crowdsec_hub` instead of `crowd_sec_hub`.
+    CrowdsecHub,
     Cursor,
     CursorAgent,
     CustomCommands,
@@ -131,6 +134,7 @@ pub enum Step {
     Deno,
     Distrobox,
     DkpPacman,
+    DmsPlugins,
     Dotnet,
     Elan,
     Emacs,
@@ -181,6 +185,7 @@ pub enum Step {
     Krew,
     Ldcup,
     Lensfun,
+    Lerd,
     Lure,
     Macports,
     Mamba,
@@ -403,6 +408,7 @@ impl Step {
                 runner.execute(*self, "config-update", || linux::run_config_update(ctx))?
             }
             Containers => runner.execute(*self, "Containers", || containers::run_containers(ctx))?,
+            CrowdsecHub => runner.execute(*self, "CrowdSec Hub", || generic::run_crowdsec_hub_upgrade(ctx))?,
             Cursor => runner.execute(*self, "Cursor extensions", || {
                 generic::run_cursor_extensions_update(ctx)
             })?,
@@ -432,6 +438,11 @@ impl Step {
             {
                 #[cfg(target_os = "linux")]
                 runner.execute(*self, "dkp-pacman", || linux::run_dkp_pacman_update(ctx))?
+            }
+            DmsPlugins =>
+            {
+                #[cfg(target_os = "linux")]
+                runner.execute(*self, "DMS Plugins", || linux::run_dms_plugins(ctx))?
             }
             Dotnet => runner.execute(*self, ".NET", || generic::run_dotnet_upgrade(ctx))?,
             Elan => runner.execute(*self, "elan", || generic::run_elan(ctx))?,
@@ -540,6 +551,7 @@ impl Step {
             Lensfun => runner.execute(*self, "Lensfun's database update", || {
                 generic::run_lensfun_update_data(ctx)
             })?,
+            Lerd => runner.execute(*self, "Lerd", || generic::run_lerd(ctx))?,
             Lure =>
             {
                 #[cfg(target_os = "linux")]
@@ -1027,6 +1039,7 @@ pub(crate) fn default_steps() -> Vec<Step> {
         Adless,
         #[cfg(not(any(target_os = "macos", target_os = "android")))]
         GnomeShellExtensions,
+        DmsPlugins,
         Pyenv,
         Sdkman,
         Rcm,
@@ -1102,6 +1115,7 @@ pub(crate) fn default_steps() -> Vec<Step> {
         Micro,
         Raco,
         Spicetify,
+        CrowdsecHub,
         GithubCliExtensions,
         Bob,
         Ollama,
@@ -1111,6 +1125,7 @@ pub(crate) fn default_steps() -> Vec<Step> {
         ClaudeCode,
         ClaudeCodePlugins,
         Codex,
+        Lerd,
         Opencode,
         Colima,
         Skills,
